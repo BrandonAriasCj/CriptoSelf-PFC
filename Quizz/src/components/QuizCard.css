@@ -1,0 +1,141 @@
+.quiz-card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  padding: 2rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.quiz-header {
+  margin-bottom: 2rem;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.question-counter {
+  font-size: 0.9rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.question-content {
+  text-align: center;
+}
+
+.question-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 2rem;
+  line-height: 1.4;
+}
+
+.options-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.option-button {
+  display: flex;
+  align-items: center;
+  padding: 1.25rem;
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: left;
+  width: 100%;
+}
+
+.option-button:hover {
+  background: #f1f5f9;
+  border-color: #667eea;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+}
+
+.option-letter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border-radius: 50%;
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-right: 1rem;
+  flex-shrink: 0;
+}
+
+.option-text {
+  font-size: 1rem;
+  color: #374151;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  .quiz-card {
+    padding: 1.5rem;
+    margin: 1rem;
+    border-radius: 20px;
+  }
+
+  .question-title {
+    font-size: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .option-button {
+    padding: 1rem;
+    border-radius: 12px;
+  }
+
+  .option-letter {
+    width: 28px;
+    height: 28px;
+    font-size: 0.8rem;
+    margin-right: 0.75rem;
+  }
+
+  .option-text {
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .quiz-card {
+    padding: 1.25rem;
+    margin: 0.5rem;
+  }
+
+  .question-title {
+    font-size: 1.1rem;
+  }
+
+  .option-button {
+    padding: 0.875rem;
+  }
+}

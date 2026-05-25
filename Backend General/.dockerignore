@@ -1,0 +1,73 @@
+# Aplicado por Docker al build context "Backend General/"
+# (Docker lo lee del context root, NO de donde vive el Dockerfile)
+
+# Venv y caches
+venv/
+env/
+.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Logs y artefactos
+*.log
+*.pid
+.pytest_cache/
+htmlcov/
+.coverage
+
+# === CRITICO: NO copiar la BD de dev al image ===
+# Si esto se incluye, el container arranca con data de dev y mascara bugs como readonly DB.
+# La BD de prod vive en /data (volumen Docker), via env DATABASE_PATH.
+db.sqlite3
+db.sqlite3-journal
+*.sqlite3
+
+# Frontend antiguo y zips
+frontent_antiguo/
+*.zip
+
+# Backups locales (van por boto3 a S3 desde el container, no en la imagen)
+backups/
+*.tar.gz
+
+# Git e IDEs
+.git/
+.gitignore
+.idea/
+.vscode/
+.cursor/
+
+# Docs/Markdown (no se ejecutan)
+*.md
+
+# Scripts dev de Windows
+*.bat
+*.ps1
+dev.bat
+dev.ps1
+start-dev.*
+restart_backend.bat
+
+# Archivos de entorno (los inyectamos via .env en EC2, no via image)
+.env
+.env.local
+.env.production
+
+# Tests no se ejecutan en runtime
+test_*.py
+*_test.py
+seleniumTest.py
+
+# Node modules raros (si hubiese)
+node_modules/
+
+# Render/deploy artifacts irrelevantes para Docker
+render.yaml
+Procfile
+
+# Docker artefactos del propio deploy
+Dockerfile*
+docker-compose*.yml

@@ -1,0 +1,41 @@
+{
+  "name": "trading-profile-quiz",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@csstools/normalize.css": "^12.1.1",
+    "framer-motion": "^10.16.4",
+    "html2canvas": "^1.4.1",
+    "lucide-react": "^0.292.0",
+    "postcss-flexbugs-fixes": "^5.0.2",
+    "postcss-normalize": "^13.0.1",
+    "postcss-preset-env": "^10.4.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}

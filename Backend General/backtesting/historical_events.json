@@ -1,0 +1,251 @@
+[
+  {
+    "id": 1,
+    "evento": "🦠 Pandemia COVID-19",
+    "tipo": "Crisis Global",
+    "fecha_inicio": "2020-03-12T00:00:00Z",
+    "fecha_fin": "2020-04-01T00:00:00Z",
+    "impacto": "Extremadamente Negativo",
+    "descripcion": "La OMS declara la pandemia global. Los gobiernos cierran economías mundialmente, causando pánico masivo en todos los mercados financieros. Bitcoin cae de $8,000 a $3,800 en días.",
+    "causa_fundamental": "Intervención gubernamental masiva y cierre de economías globales",
+    "color": "#dc2626",
+    "icono": "🦠"
+  },
+  {
+    "id": 2,
+    "evento": "⚡ Halving de Bitcoin #3",
+    "tipo": "Evento Programado",
+    "fecha_inicio": "2020-05-11T00:00:00Z",
+    "fecha_fin": null,
+    "impacto": "Positivo (Largo Plazo)",
+    "descripcion": "Reducción automática de la recompensa por bloque de Bitcoin a 6.25 BTC. Históricamente precede a mercados alcistas por escasez programada.",
+    "causa_fundamental": "Reducción automática de la oferta de Bitcoin (escasez programada)",
+    "color": "#f59e0b",
+    "icono": "⚡"
+  },
+  {
+    "id": 3,
+    "evento": "🚗 Tesla adopta Bitcoin",
+    "tipo": "Adopción Corporativa",
+    "fecha_inicio": "2021-02-08T00:00:00Z",
+    "fecha_fin": null,
+    "impacto": "Muy Positivo",
+    "descripcion": "Tesla anuncia la compra de $1.5 billones en BTC y acepta pagos en Bitcoin. Primera gran corporación en adoptar BTC como reserva de valor.",
+    "causa_fundamental": "Adopción institucional masiva - legitimación de Bitcoin como reserva de valor",
+    "color": "#10b981",
+    "icono": "🚗"
+  },
+  {
+    "id": 4,
+    "evento": "🇨🇳 China prohíbe Bitcoin",
+    "tipo": "Prohibición Gubernamental",
+    "fecha_inicio": "2021-05-19T00:00:00Z",
+    "fecha_fin": null,
+    "impacto": "Muy Negativo",
+    "descripcion": "China reitera la prohibición total de servicios cripto y expulsa a todos los mineros. Causa una corrección del 50% en Bitcoin.",
+    "causa_fundamental": "Intervención gubernamental directa - prohibición y persecución estatal",
+    "color": "#dc2626",
+    "icono": "🇨🇳"
+  },
+  {
+    "id": 5,
+    "evento": "🇸🇻 El Salvador adopta Bitcoin",
+    "tipo": "Adopción Nacional",
+    "fecha_inicio": "2021-09-07T00:00:00Z",
+    "fecha_fin": null,
+    "impacto": "Positivo",
+    "descripcion": "Primer país en la historia en adoptar Bitcoin como moneda de curso legal. Compra masiva de BTC por parte del gobierno.",
+    "causa_fundamental": "Adopción gubernamental oficial - Bitcoin como moneda nacional",
+    "color": "#10b981",
+    "icono": "🇸🇻"
+  },
+  {
+    "id": 6,
+    "evento": "⚔️ Guerra Rusia-Ucrania",
+    "tipo": "Conflicto Geopolítico",
+    "fecha_inicio": "2022-02-24T00:00:00Z",
+    "fecha_fin": null,
+    "impacto": "Volatilidad Alta",
+    "descripcion": "Invasión rusa a Ucrania causa pánico inicial en mercados de riesgo, pero Bitcoin emerge como refugio de valor ante sanciones bancarias.",
+    "causa_fundamental": "Guerra y sanciones internacionales - Bitcoin como escape del sistema bancario tradicional",
+    "color": "#f59e0b",
+    "icono": "⚔️"
+  },
+  {
+    "id": 7,
+    "evento": "💥 Colapso de Terra (LUNA)",
+    "tipo": "Crisis Cripto",
+    "fecha_inicio": "2022-05-09T00:00:00Z",
+    "fecha_fin": "2022-05-15T00:00:00Z",
+    "impacto": "Extremadamente Negativo",
+    "descripcion": "El stablecoin UST pierde su paridad causando un efecto dominó que anula completamente el valor de LUNA. $60 billones se evaporan en días.",
+    "causa_fundamental": "Falla en algoritmo de stablecoin - pérdida masiva de confianza en DeFi",
+    "color": "#dc2626",
+    "icono": "💥"
+  },
+  {
+    "id": 8,
+    "evento": "🏦 Colapso de FTX",
+    "tipo": "Fraude Financiero",
+    "fecha_inicio": "2022-11-08T00:00:00Z",
+    "fecha_fin": "2022-11-15T00:00:00Z",
+    "impacto": "Extremadamente Negativo",
+    "descripcion": "Bancarrota del segundo exchange más grande del mundo tras descubrirse fraude masivo y uso indebido de fondos de clientes por $8 billones.",
+    "causa_fundamental": "Fraude y malversación de fondos - crisis de confianza en exchanges centralizados",
+    "color": "#dc2626",
+    "icono": "🏦"
+  },
+  {
+    "id": 9,
+    "evento": "🏛️ Crisis Bancaria EE.UU.",
+    "tipo": "Crisis del Sistema Bancario",
+    "fecha_inicio": "2023-03-10T00:00:00Z",
+    "fecha_fin": "2023-03-20T00:00:00Z",
+    "impacto": "Positivo para Bitcoin",
+    "descripcion": "Colapso de Silicon Valley Bank y otros bancos regionales. Bitcoin sube 20% como refugio ante la crisis del sistema bancario tradicional.",
+    "causa_fundamental": "Falla del sistema bancario tradicional - Bitcoin como refugio de valor",
+    "color": "#10b981",
+    "icono": "🏛️"
+  },
+  {
+    "id": 10,
+    "evento": "⚖️ Ripple vence a la SEC",
+    "tipo": "Victoria Legal",
+    "fecha_inicio": "2023-07-13T00:00:00Z",
+    "fecha_fin": null,
+    "impacto": "Positivo",
+    "descripcion": "Juez dictamina que XRP no es un valor al venderse a inversores minoristas. Primera gran victoria legal contra la SEC.",
+    "causa_fundamental": "Victoria legal histórica - precedente favorable para criptomonedas vs reguladores",
+    "color": "#10b981",
+    "icono": "⚖️"
+  },
+  {
+    "id": 11,
+    "evento": "🚀 Conflicto Medio Oriente",
+    "tipo": "Crisis Geopolítica",
+    "fecha_inicio": "2023-10-07T00:00:00Z",
+    "fecha_fin": null,
+    "impacto": "Volatilidad",
+    "descripcion": "Escalada militar en Israel-Gaza afecta momentáneamente los mercados globales. Bitcoin muestra resistencia como activo descorrelacionado.",
+    "causa_fundamental": "Tensión geopolítica - Bitcoin como refugio ante inestabilidad regional",
+    "color": "#f59e0b",
+    "icono": "🚀"
+  },
+  {
+    "id": 12,
+    "evento": "📈 ETFs de Bitcoin Aprobados",
+    "tipo": "Aprobación Regulatoria",
+    "fecha_inicio": "2024-01-10T00:00:00Z",
+    "fecha_fin": null,
+    "impacto": "Muy Positivo",
+    "descripcion": "La SEC aprueba los primeros ETFs de Bitcoin al contado (BlackRock, Fidelity, etc.). Entrada masiva de capital institucional de $50+ billones.",
+    "causa_fundamental": "Aprobación regulatoria histórica - acceso institucional masivo a Bitcoin",
+    "color": "#10b981",
+    "icono": "📈"
+  },
+  {
+    "id": 13,
+    "evento": "🇩🇪 Alemania vende Bitcoin",
+    "tipo": "Venta Gubernamental",
+    "fecha_inicio": "2024-06-19T00:00:00Z",
+    "fecha_fin": "2024-07-12T00:00:00Z",
+    "impacto": "Negativo (Corto Plazo)",
+    "descripcion": "Gobierno alemán liquida 50,000 BTC incautados + reembolsos de Mt. Gox inundan el mercado con presión vendedora masiva.",
+    "causa_fundamental": "Presión de oferta masiva - liquidación gubernamental y reembolsos históricos",
+    "color": "#dc2626",
+    "icono": "🇩🇪"
+  },
+  {
+    "id": 14,
+    "evento": "⚡ Halving de Bitcoin #4",
+    "tipo": "Evento Programado",
+    "fecha_inicio": "2024-04-19T00:00:00Z",
+    "fecha_fin": null,
+    "impacto": "Positivo (Largo Plazo)",
+    "descripcion": "Cuarta reducción automática de la recompensa por bloque de Bitcoin a 3.125 BTC. Coincide con entrada de ETFs institucionales.",
+    "causa_fundamental": "Reducción de oferta + demanda institucional récord vía ETFs",
+    "color": "#f59e0b",
+    "icono": "⚡"
+  },
+  {
+    "id": 15,
+    "evento": "Ciclo alcista impulsado por ETFs y adopción institucional",
+    "tipo": "Crypto / Mercado",
+    "fecha_inicio": "2025-01-01T00:00:00Z",
+    "fecha_fin": "2025-12-31T00:00:00Z",
+    "impacto": "Muy Positivo",
+    "descripcion": "Flujos sostenidos hacia ETFs de Bitcoin y Ethereum impulsan un mercado alcista con máximos históricos, liderado por inversores institucionales."
+  },
+  {
+    "id": 16,
+    "evento": "Rumor de regulación masiva en EE. UU.",
+    "tipo": "Demo / Prueba",
+    "fecha_inicio": "2025-03-15T00:00:00Z",
+    "fecha_fin": null,
+    "impacto": "Volatilidad",
+    "descripcion": "Se filtra un documento de la SEC proponiendo nuevas normativas para DeFi, causando nerviosismo."
+  },
+  {
+    "id": 17,
+    "evento": "Ataque cibernético detectado en 2025",
+    "tipo": "Demo / Hacker",
+    "fecha_inicio": "2025-01-02T00:00:00Z",
+    "fecha_fin": null,
+    "impacto": "Muy Negativo",
+    "descripcion": "Noticias sobre posible exploit en grandes bóvedas DeFi generan una caída rápida."
+  },
+  {
+    "id": 18,
+    "evento": "Actualización importante del mercado en 2026",
+    "tipo": "Demo / Evento 2026",
+    "fecha_inicio": "2026-04-01T00:00:00Z",
+    "fecha_fin": null,
+    "impacto": "Positivo",
+    "descripcion": "Nueva iteración de la plataforma CriptoSelf."
+  },
+  {
+    "id": 19,
+    "evento": "Buga en principal Exchange",
+    "tipo": "Demo / Prueba / Hack",
+    "fecha_inicio": "2025-05-20T00:00:00Z",
+    "fecha_fin": null,
+    "impacto": "Negativo",
+    "descripcion": "Un gran exchange detiene los retiros de BTC temporalmente debido a una falla de red."
+  },
+  {
+    "id": 18,
+    "evento": "Mayor regulación global de criptomonedas (EE.UU., Europa, Asia)",
+    "tipo": "Regulatorio",
+    "fecha_inicio": "2025-03-01T00:00:00Z",
+    "fecha_fin": null,
+    "impacto": "Mixto",
+    "descripcion": "Nuevas normativas exigen mayor transparencia a exchanges, stablecoins y DeFi, generando confianza a largo plazo pero presión a corto plazo."
+  },
+  {
+    "id": 17,
+    "evento": "Adopción de CBDCs en múltiples países",
+    "tipo": "Macroeconomía / Tecnología",
+    "fecha_inicio": "2025-06-15T00:00:00Z",
+    "fecha_fin": null,
+    "impacto": "Mixto",
+    "descripcion": "Implementación de monedas digitales de bancos centrales compite parcialmente con criptomonedas pero valida la tecnología blockchain."
+  },
+  {
+    "id": 18,
+    "evento": "Corrección post-ciclo alcista",
+    "tipo": "Crypto / Mercado",
+    "fecha_inicio": "2026-02-01T00:00:00Z",
+    "fecha_fin": "2026-06-01T00:00:00Z",
+    "impacto": "Negativo",
+    "descripcion": "Toma de ganancias tras máximos históricos genera una corrección significativa en Bitcoin y altcoins."
+  },
+  {
+    "id": 19,
+    "evento": "Consolidación institucional y madurez del mercado cripto",
+    "tipo": "Crypto / Institucional",
+    "fecha_inicio": "2026-01-01T00:00:00Z",
+    "fecha_fin": null,
+    "impacto": "Positivo (Largo Plazo)",
+    "descripcion": "Mayor integración con sistemas financieros tradicionales, regulación clara y crecimiento de infraestructura institucional."
+  }
+]

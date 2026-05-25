@@ -1,0 +1,29 @@
+services:
+  # 🧠 Backend: Django
+  - type: web
+    name: django-backend
+    env: python
+    rootDir: .  # raíz del repo (tu backend)
+    plan: free
+    buildCommand: |
+      pip install -r requirements.txt
+      python manage.py collectstatic --noinput
+      python manage.py migrate
+    startCommand: gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: backend.settings
+      - key: PYTHON_VERSION
+        value: 3.11
+      - key: WEB_CONCURRENCY
+        value: 4
+
+  # 🌐 Frontend: React (carpeta dentro del repo)
+  - type: static_site
+    name: react-frontend
+    rootDir: frontend_oficial  # subcarpeta del repo
+    buildCommand: npm install && npm run build
+    publishDir: build
+    envVars:
+      - key: REACT_APP_API_URL
+        value: ${django-backend.url}
