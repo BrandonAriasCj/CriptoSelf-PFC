@@ -1,0 +1,16 @@
+[
+  { "ParameterKey": "DomainName",           "ParameterValue": "criptoself.com" },
+  { "ParameterKey": "BackendSubdomain",     "ParameterValue": "api" },
+  { "ParameterKey": "UsuarioSubdomain",     "ParameterValue": "usuario" },
+  { "ParameterKey": "EmpresaSubdomain",     "ParameterValue": "empresa" },
+  { "ParameterKey": "AdminEmail",           "ParameterValue": "tu-email@example.com" },
+  { "ParameterKey": "KeyPairName",          "ParameterValue": "REEMPLAZAR-nombre-de-tu-keypair" },
+  { "ParameterKey": "AllowedSSHCidr",       "ParameterValue": "0.0.0.0/0" },
+  { "ParameterKey": "VpcId",                "ParameterValue": "vpc-REEMPLAZAR" },
+  { "ParameterKey": "SubnetId",             "ParameterValue": "subnet-REEMPLAZAR" },
+  { "ParameterKey": "BackendInstanceType",  "ParameterValue": "t3.small" },
+  { "ParameterKey": "FrontendInstanceType", "ParameterValue": "t3.micro" },
+  { "ParameterKey": "BackendImageTag",      "ParameterValue": "latest" },
+  { "ParameterKey": "UsuarioImageTag",      "ParameterValue": "latest" },
+  { "ParameterKey": "EmpresaImageTag",      "ParameterValue": "latest" }
+]

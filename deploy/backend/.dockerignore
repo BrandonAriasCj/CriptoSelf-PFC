@@ -1,0 +1,43 @@
+# Aplicado con build context "Backend General/"
+venv/
+env/
+.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+node_modules/
+.git/
+.gitignore
+.idea/
+.vscode/
+
+# DB local (NO subir a la imagen, va por volumen en EC2)
+db.sqlite3
+db.sqlite3-journal
+
+# Backups locales
+backups/
+*.tar.gz
+
+# Artefactos de tests
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Docker artefactos
+docker-compose*.yml
+Dockerfile*
+
+# Archivos de dev
+*.bat
+*.ps1
+*.pid
+DESARROLLO.md
+README*.md
+RESUMEN*.md
+ACADEMIA*.md
+REINICIAR*.md

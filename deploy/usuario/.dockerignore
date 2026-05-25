@@ -1,0 +1,22 @@
+# Aplicado con build context "Perfil Usuario Web/"
+node_modules/
+build/
+dist/
+.vite/
+.cache/
+
+.git/
+.gitignore
+.idea/
+.vscode/
+.env
+.env.local
+.env.*.local
+
+*.log
+coverage/
+.nyc_output/
+
+# Docker
+Dockerfile*
+docker-compose*.yml

@@ -1,0 +1,11 @@
+# NUNCA committear secretos ni binarios locales
+.secrets/
+.tools/
+*.pem
+*.key
+backend/.env
+usuario/.env
+empresa/.env
+
+# Datos reales de infra (mantener parameters.example.json como template)
+cloudformation/parameters.deploy.json

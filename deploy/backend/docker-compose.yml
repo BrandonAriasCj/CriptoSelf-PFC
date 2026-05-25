@@ -1,0 +1,140 @@
+## Compose desplegado en la EC2 del backend.
+## Asume:
+##   - Imagen Django ya publicada en ECR (referenciada por ${ECR_BACKEND_IMAGE}).
+##   - Archivo .env presente (ver .env.example).
+##   - Volumen ./certbot/ existe en el host (lo crea UserData de CloudFormation).
+##   - El init-letsencrypt.sh ya emitio certificados (primera vez).
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: criptoself-redis
+    restart: unless-stopped
+    # No exponemos puerto al host: solo lo usan app/worker/beat dentro de backend-net.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    networks: [backend-net]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  app:
+    image: ${ECR_BACKEND_IMAGE}
+    container_name: criptoself-backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_PATH: /data/db.sqlite3
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - sqlite-data:/data
+      - media-data:/app/media
+      - static-data:/app/staticfiles
+    expose:
+      - "8000"
+    networks: [backend-net]
+
+  celery-worker:
+    image: ${ECR_BACKEND_IMAGE}
+    container_name: criptoself-celery-worker
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_PATH: /data/db.sqlite3
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - sqlite-data:/data
+      - media-data:/app/media
+    networks: [backend-net]
+    # Sobreescribimos entrypoint para saltarnos migrate/collectstatic (los hace `app`)
+    # y evitar carrera con SQLite.
+    entrypoint: ["/usr/bin/tini", "--"]
+    command:
+      - celery
+      - -A
+      - backend
+      - worker
+      - -l
+      - info
+      - --concurrency
+      - "2"
+
+  celery-beat:
+    image: ${ECR_BACKEND_IMAGE}
+    container_name: criptoself-celery-beat
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_PATH: /data/db.sqlite3
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - sqlite-data:/data
+    networks: [backend-net]
+    entrypoint: ["/usr/bin/tini", "--"]
+    command:
+      - celery
+      - -A
+      - backend
+      - beat
+      - -l
+      - info
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: criptoself-nginx
+    restart: unless-stopped
+    depends_on: [app]
+    environment:
+      BACKEND_DOMAIN: ${BACKEND_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+      - static-data:/var/www/static:ro
+      - media-data:/var/www/media:ro
+    networks: [backend-net]
+    # Procesa templates con envsubst (el docker-entrypoint del nginx alpine solo lo hace
+    # cuando el CMD empieza con "nginx" — al sobrescribirlo con /bin/sh hay que hacerlo a mano)
+    # + reload periodico para tomar nuevos certs tras renovacion.
+    command:
+      - /bin/sh
+      - -c
+      - |
+        envsubst '$$BACKEND_DOMAIN' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf
+        ( while :; do sleep 6h & wait $${!}; nginx -s reload; done ) &
+        exec nginx -g 'daemon off;'
+
+  certbot:
+    image: certbot/certbot:latest
+    container_name: criptoself-certbot
+    restart: unless-stopped
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: >
+      /bin/sh -c "trap exit TERM; while :; do certbot renew --quiet; sleep 12h & wait $${!}; done"
+
+volumes:
+  sqlite-data:
+  media-data:
+  static-data:
+
+networks:
+  backend-net:
+    driver: bridge

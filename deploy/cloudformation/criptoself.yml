@@ -1,0 +1,641 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  CriptoSelf - infraestructura minima en AWS:
+  3 EC2 (backend / usuario / empresa) + 3 EIP + 3 ECR + IAM + SGs.
+  Cada EC2 lista para correr docker-compose con la imagen pulleada de ECR.
+  HTTPS via Let's Encrypt (init manual tras apuntar DNS).
+
+# -------------------- Parameters --------------------
+Parameters:
+  DomainName:
+    Type: String
+    Default: criptoself.com
+    Description: Dominio raiz (sin subdominio). Ej. criptoself.com
+  BackendSubdomain:
+    Type: String
+    Default: api
+  UsuarioSubdomain:
+    Type: String
+    Default: usuario
+  EmpresaSubdomain:
+    Type: String
+    Default: empresa
+  AdminEmail:
+    Type: String
+    Description: Email para Let's Encrypt y notificaciones AWS
+    AllowedPattern: '^[^@\s]+@[^@\s]+\.[^@\s]+$'
+
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: KeyPair existente para SSH a las EC2
+  AllowedSSHCidr:
+    Type: String
+    Default: 0.0.0.0/0
+    Description: CIDR permitido para SSH (port 22). RECOMENDADO restringir a tu IP/32.
+    AllowedPattern: '^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$'
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC donde correran las EC2 (usa default VPC si no tienes otra)
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Subnet publica (con Internet Gateway)
+
+  BackendInstanceType:
+    Type: String
+    Default: t3.small
+    AllowedValues: [t3.micro, t3.small, t3.medium, t4g.small, t4g.medium]
+  FrontendInstanceType:
+    Type: String
+    Default: t3.micro
+    AllowedValues: [t3.nano, t3.micro, t3.small, t4g.nano, t4g.micro, t4g.small]
+
+  LatestAmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+    Description: AMI Amazon Linux 2023 (cambiar a -arm64 si usas instancias t4g)
+
+  BackendImageTag:
+    Type: String
+    Default: latest
+  UsuarioImageTag:
+    Type: String
+    Default: latest
+  EmpresaImageTag:
+    Type: String
+    Default: latest
+
+# -------------------- Resources --------------------
+Resources:
+
+  # ---------- ECR ----------
+  EcrBackend:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: criptoself-backend
+      ImageScanningConfiguration: { ScanOnPush: true }
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          { "rules": [{ "rulePriority": 1, "description": "Keep last 5",
+            "selection": {"tagStatus": "any", "countType": "imageCountMoreThan", "countNumber": 5},
+            "action": {"type": "expire"} }] }
+
+  EcrUsuario:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: criptoself-usuario
+      ImageScanningConfiguration: { ScanOnPush: true }
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          { "rules": [{ "rulePriority": 1, "description": "Keep last 5",
+            "selection": {"tagStatus": "any", "countType": "imageCountMoreThan", "countNumber": 5},
+            "action": {"type": "expire"} }] }
+
+  EcrEmpresa:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: criptoself-empresa
+      ImageScanningConfiguration: { ScanOnPush: true }
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          { "rules": [{ "rulePriority": 1, "description": "Keep last 5",
+            "selection": {"tagStatus": "any", "countType": "imageCountMoreThan", "countNumber": 5},
+            "action": {"type": "expire"} }] }
+
+  # ---------- IAM ----------
+  Ec2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ec2.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+  Ec2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref Ec2Role]
+
+  # ---------- Security Groups ----------
+  WebSg:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: HTTP/HTTPS publico + SSH restringido
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref AllowedSSHCidr
+          Description: SSH
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: HTTP / ACME challenge
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS
+
+  # ---------- EC2 Backend ----------
+  BackendInstance:
+    Type: AWS::EC2::Instance
+    DependsOn: [EcrBackend]
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: !Ref BackendInstanceType
+      KeyName: !Ref KeyPairName
+      IamInstanceProfile: !Ref Ec2InstanceProfile
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds: [!Ref WebSg]
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp3
+            VolumeSize: 20
+            DeleteOnTermination: true
+            Encrypted: true
+      Tags:
+        - { Key: Name,    Value: !Sub "${AWS::StackName}-backend" }
+        - { Key: Service, Value: backend }
+      UserData:
+        Fn::Base64: !Sub
+          - |
+            #!/bin/bash
+            set -euxo pipefail
+            exec > >(tee /var/log/userdata.log) 2>&1
+
+            dnf update -y
+            dnf install -y docker awscli git
+            systemctl enable --now docker
+            usermod -aG docker ec2-user
+
+            # Docker Compose v2 (plugin)
+            mkdir -p /usr/local/lib/docker/cli-plugins
+            curl -sSL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" \
+              -o /usr/local/lib/docker/cli-plugins/docker-compose
+            chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+            # Esperar docker
+            until docker info >/dev/null 2>&1; do sleep 2; done
+
+            mkdir -p /opt/criptoself
+            cd /opt/criptoself
+            mkdir -p certbot/conf certbot/www
+
+            cat > docker-compose.yml <<'COMPOSE_EOF'
+            services:
+              app:
+                image: ${EcrUri}/criptoself-backend:${BackendImageTag}
+                container_name: criptoself-backend
+                restart: unless-stopped
+                env_file: .env
+                volumes:
+                  - sqlite-data:/data
+                  - media-data:/app/media
+                  - static-data:/app/staticfiles
+                expose: ["8000"]
+                networks: [backend-net]
+
+              nginx:
+                image: nginx:1.27-alpine
+                container_name: criptoself-nginx
+                restart: unless-stopped
+                depends_on: [app]
+                environment:
+                  BACKEND_DOMAIN: ${BackendDomain}
+                ports: ["80:80", "443:443"]
+                volumes:
+                  - ./default.conf.template:/etc/nginx/templates/default.conf.template:ro
+                  - ./certbot/conf:/etc/letsencrypt:ro
+                  - ./certbot/www:/var/www/certbot:ro
+                  - static-data:/var/www/static:ro
+                  - media-data:/var/www/media:ro
+                networks: [backend-net]
+                # IMPORTANTE: incluir envsubst antes del loop nginx, porque la imagen oficial
+                # solo procesa /etc/nginx/templates/ si CMD empieza con `nginx`. Aqui hacemos
+                # el render manual y luego arrancamos nginx + loop de reload cada 6h (para certs renovados).
+                command: >
+                  /bin/sh -c "envsubst '${!BACKEND_DOMAIN}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && (while :; do sleep 6h && nginx -s reload; done &) && nginx -g 'daemon off;'"
+
+              certbot:
+                image: certbot/certbot:latest
+                container_name: criptoself-certbot
+                restart: unless-stopped
+                volumes:
+                  - ./certbot/conf:/etc/letsencrypt
+                  - ./certbot/www:/var/www/certbot
+                entrypoint: >
+                  /bin/sh -c "trap exit TERM; while :; do certbot renew --quiet; sleep 12h && true; done"
+
+            volumes:
+              sqlite-data:
+              media-data:
+              static-data:
+            networks:
+              backend-net: { driver: bridge }
+            COMPOSE_EOF
+
+            cat > default.conf.template <<'NGINX_EOF'
+            upstream django_backend { server app:8000; }
+            server {
+              listen 80; listen [::]:80;
+              server_name ${!BACKEND_DOMAIN};
+              location /.well-known/acme-challenge/ { root /var/www/certbot; }
+              location / { return 301 https://$host$request_uri; }
+            }
+            server {
+              listen 443 ssl; listen [::]:443 ssl; http2 on;
+              server_name ${!BACKEND_DOMAIN};
+              ssl_certificate     /etc/letsencrypt/live/${!BACKEND_DOMAIN}/fullchain.pem;
+              ssl_certificate_key /etc/letsencrypt/live/${!BACKEND_DOMAIN}/privkey.pem;
+              ssl_protocols TLSv1.2 TLSv1.3;
+              ssl_ciphers HIGH:!aNULL:!MD5;
+              add_header Strict-Transport-Security "max-age=63072000" always;
+              client_max_body_size 50M;
+              location /static/ { alias /var/www/static/; expires 30d; access_log off; }
+              location /media/  { alias /var/www/media/;  expires 7d; }
+              location / {
+                proxy_pass http://django_backend;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto https;
+              }
+            }
+            NGINX_EOF
+
+            cat > .env <<ENV_EOF
+            # Esqueleto. El flujo de deploy lo sobreescribe via SSM con los valores reales.
+            ECR_BACKEND_IMAGE=${EcrUri}/criptoself-backend:${BackendImageTag}
+            BACKEND_DOMAIN=${BackendDomain}
+
+            SECRET_KEY=PENDIENTE-DE-INYECTAR-VIA-SSM
+            DEBUG=False
+
+            EMAIL_HOST=smtp.gmail.com
+            EMAIL_PORT=587
+            EMAIL_USE_TLS=True
+            EMAIL_HOST_USER=
+            EMAIL_HOST_PASSWORD=
+            DEFAULT_FROM_EMAIL=noreply@${DomainNameRoot}
+
+            GOOGLE_CLIENT_ID=
+            GOOGLE_CLIENT_SECRET=
+            GOOGLE_REDIRECT_URI=https://${UsuarioDomain}/auth/google/callback
+
+            GITHUB_CLIENT_ID=
+            GITHUB_CLIENT_SECRET=
+            GITHUB_REDIRECT_URI=https://${UsuarioDomain}/auth/github/callback
+
+            DJANGO_SUPERUSER_USERNAME=admin
+            DJANGO_SUPERUSER_EMAIL=${AdminEmail}
+            DJANGO_SUPERUSER_PASSWORD=
+            ENV_EOF
+
+            cat > init-letsencrypt.sh <<'LE_EOF'
+            #!/bin/sh
+            set -e
+            if [ -z "$BACKEND_DOMAIN" ]; then echo "Falta BACKEND_DOMAIN"; exit 1; fi
+            if [ -z "$ADMIN_EMAIL" ];     then echo "Falta ADMIN_EMAIL";     exit 1; fi
+            DATA_PATH="./certbot"
+            # (sin early-exit - script idempotente)
+            mkdir -p "$DATA_PATH/conf" "$DATA_PATH/www"
+            LIVE="/etc/letsencrypt/live/$BACKEND_DOMAIN"
+            docker compose run --rm --entrypoint "sh -c 'mkdir -p $LIVE && openssl req -x509 -nodes -newkey rsa:2048 -days 1 -keyout $LIVE/privkey.pem -out $LIVE/fullchain.pem -subj /CN=localhost'" certbot
+            docker compose up -d nginx
+            docker compose run --rm --entrypoint "sh -c 'rm -rf /etc/letsencrypt/live/$BACKEND_DOMAIN /etc/letsencrypt/archive/$BACKEND_DOMAIN /etc/letsencrypt/renewal/$BACKEND_DOMAIN.conf'" certbot
+            docker compose run --rm --entrypoint "certbot certonly --webroot -w /var/www/certbot --email $ADMIN_EMAIL --agree-tos --no-eff-email --force-renewal -d $BACKEND_DOMAIN" certbot
+            docker compose exec nginx nginx -s reload
+            LE_EOF
+            chmod +x init-letsencrypt.sh
+
+            # ECR login + pull
+            aws ecr get-login-password --region ${AWS::Region} | \
+              docker login --username AWS --password-stdin ${EcrUri}
+            docker compose pull app || true
+
+            chown -R ec2-user:ec2-user /opt/criptoself
+            echo "Bootstrap completo. SSH a la instancia, edita /opt/criptoself/.env, apunta DNS y ejecuta init-letsencrypt.sh"
+          - EcrUri: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com"
+            BackendDomain: !Sub "${BackendSubdomain}.${DomainName}"
+            UsuarioDomain: !Sub "${UsuarioSubdomain}.${DomainName}"
+            DomainNameRoot: !Ref DomainName
+
+  BackendEip:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref BackendInstance
+      Tags:
+        - { Key: Name, Value: !Sub "${AWS::StackName}-backend-eip" }
+
+  # ---------- EC2 Usuario ----------
+  UsuarioInstance:
+    Type: AWS::EC2::Instance
+    DependsOn: [EcrUsuario]
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: !Ref FrontendInstanceType
+      KeyName: !Ref KeyPairName
+      IamInstanceProfile: !Ref Ec2InstanceProfile
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds: [!Ref WebSg]
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp3
+            VolumeSize: 10
+            DeleteOnTermination: true
+            Encrypted: true
+      Tags:
+        - { Key: Name,    Value: !Sub "${AWS::StackName}-usuario" }
+        - { Key: Service, Value: usuario }
+      UserData:
+        Fn::Base64: !Sub
+          - |
+            #!/bin/bash
+            set -euxo pipefail
+            exec > >(tee /var/log/userdata.log) 2>&1
+
+            dnf update -y && dnf install -y docker awscli
+            systemctl enable --now docker
+            usermod -aG docker ec2-user
+
+            mkdir -p /usr/local/lib/docker/cli-plugins
+            curl -sSL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" \
+              -o /usr/local/lib/docker/cli-plugins/docker-compose
+            chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+            until docker info >/dev/null 2>&1; do sleep 2; done
+
+            mkdir -p /opt/criptoself && cd /opt/criptoself
+            mkdir -p certbot/conf certbot/www
+
+            cat > docker-compose.yml <<'COMPOSE_EOF'
+            services:
+              app:
+                image: ${EcrUri}/criptoself-usuario:${UsuarioImageTag}
+                container_name: criptoself-usuario
+                restart: unless-stopped
+                environment:
+                  USUARIO_DOMAIN: ${UsuarioDomain}
+                  BACKEND_DOMAIN: ${BackendDomain}
+                ports: ["80:80", "443:443"]
+                volumes:
+                  - ./default.conf.template:/etc/nginx/templates/default.conf.template:ro
+                  - ./certbot/conf:/etc/letsencrypt:ro
+                  - ./certbot/www:/var/www/certbot:ro
+                command: >
+                  /bin/sh -c "envsubst '${!USUARIO_DOMAIN} ${!BACKEND_DOMAIN}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && (while :; do sleep 6h && nginx -s reload; done &) && nginx -g 'daemon off;'"
+
+              certbot:
+                image: certbot/certbot:latest
+                container_name: criptoself-usuario-certbot
+                restart: unless-stopped
+                volumes:
+                  - ./certbot/conf:/etc/letsencrypt
+                  - ./certbot/www:/var/www/certbot
+                entrypoint: >
+                  /bin/sh -c "trap exit TERM; while :; do certbot renew --quiet; sleep 12h && true; done"
+            COMPOSE_EOF
+
+            cat > default.conf.template <<'NGINX_EOF'
+            server {
+              listen 80; listen [::]:80;
+              server_name ${!USUARIO_DOMAIN};
+              location /.well-known/acme-challenge/ { root /var/www/certbot; }
+              location / { return 301 https://$host$request_uri; }
+            }
+            server {
+              listen 443 ssl; listen [::]:443 ssl; http2 on;
+              server_name ${!USUARIO_DOMAIN};
+              ssl_certificate     /etc/letsencrypt/live/${!USUARIO_DOMAIN}/fullchain.pem;
+              ssl_certificate_key /etc/letsencrypt/live/${!USUARIO_DOMAIN}/privkey.pem;
+              ssl_protocols TLSv1.2 TLSv1.3;
+              add_header Strict-Transport-Security "max-age=63072000" always;
+              root /usr/share/nginx/html;
+              index index.html;
+              location /assets/ { expires 1y; access_log off; add_header Cache-Control "public, immutable"; }
+              resolver 8.8.8.8 1.1.1.1 valid=300s ipv6=off;
+              location /api/ {
+                proxy_pass https://${!BACKEND_DOMAIN}/api/;
+                proxy_ssl_server_name on;
+                proxy_set_header Host ${!BACKEND_DOMAIN};
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto https;
+              }
+              location / { try_files $uri $uri/ /index.html; }
+            }
+            NGINX_EOF
+
+            cat > init-letsencrypt.sh <<'LE_EOF'
+            #!/bin/sh
+            set -e
+            if [ -z "$USUARIO_DOMAIN" ]; then echo "Falta USUARIO_DOMAIN"; exit 1; fi
+            if [ -z "$ADMIN_EMAIL" ];     then echo "Falta ADMIN_EMAIL";     exit 1; fi
+            DATA_PATH="./certbot"
+            # (sin early-exit - script idempotente)
+            mkdir -p "$DATA_PATH/conf" "$DATA_PATH/www"
+            LIVE="/etc/letsencrypt/live/$USUARIO_DOMAIN"
+            docker compose run --rm --entrypoint "sh -c 'mkdir -p $LIVE && openssl req -x509 -nodes -newkey rsa:2048 -days 1 -keyout $LIVE/privkey.pem -out $LIVE/fullchain.pem -subj /CN=localhost'" certbot
+            docker compose up -d app
+            docker compose run --rm --entrypoint "sh -c 'rm -rf /etc/letsencrypt/live/$USUARIO_DOMAIN /etc/letsencrypt/archive/$USUARIO_DOMAIN /etc/letsencrypt/renewal/$USUARIO_DOMAIN.conf'" certbot
+            docker compose run --rm --entrypoint "certbot certonly --webroot -w /var/www/certbot --email $ADMIN_EMAIL --agree-tos --no-eff-email --force-renewal -d $USUARIO_DOMAIN" certbot
+            docker compose exec app nginx -s reload
+            LE_EOF
+            chmod +x init-letsencrypt.sh
+
+            aws ecr get-login-password --region ${AWS::Region} | \
+              docker login --username AWS --password-stdin ${EcrUri}
+            docker compose pull app || true
+
+            chown -R ec2-user:ec2-user /opt/criptoself
+          - EcrUri: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com"
+            UsuarioDomain: !Sub "${UsuarioSubdomain}.${DomainName}"
+            BackendDomain: !Sub "${BackendSubdomain}.${DomainName}"
+
+  UsuarioEip:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref UsuarioInstance
+      Tags:
+        - { Key: Name, Value: !Sub "${AWS::StackName}-usuario-eip" }
+
+  # ---------- EC2 Empresa ----------
+  EmpresaInstance:
+    Type: AWS::EC2::Instance
+    DependsOn: [EcrEmpresa]
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: !Ref FrontendInstanceType
+      KeyName: !Ref KeyPairName
+      IamInstanceProfile: !Ref Ec2InstanceProfile
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds: [!Ref WebSg]
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp3
+            VolumeSize: 10
+            DeleteOnTermination: true
+            Encrypted: true
+      Tags:
+        - { Key: Name,    Value: !Sub "${AWS::StackName}-empresa" }
+        - { Key: Service, Value: empresa }
+      UserData:
+        Fn::Base64: !Sub
+          - |
+            #!/bin/bash
+            set -euxo pipefail
+            exec > >(tee /var/log/userdata.log) 2>&1
+
+            dnf update -y && dnf install -y docker awscli
+            systemctl enable --now docker
+            usermod -aG docker ec2-user
+
+            mkdir -p /usr/local/lib/docker/cli-plugins
+            curl -sSL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" \
+              -o /usr/local/lib/docker/cli-plugins/docker-compose
+            chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+            until docker info >/dev/null 2>&1; do sleep 2; done
+
+            mkdir -p /opt/criptoself && cd /opt/criptoself
+            mkdir -p certbot/conf certbot/www
+
+            cat > docker-compose.yml <<'COMPOSE_EOF'
+            services:
+              app:
+                image: ${EcrUri}/criptoself-empresa:${EmpresaImageTag}
+                container_name: criptoself-empresa
+                restart: unless-stopped
+                environment:
+                  EMPRESA_DOMAIN: ${EmpresaDomain}
+                  BACKEND_DOMAIN: ${BackendDomain}
+                ports: ["80:80", "443:443"]
+                volumes:
+                  - ./default.conf.template:/etc/nginx/templates/default.conf.template:ro
+                  - ./certbot/conf:/etc/letsencrypt:ro
+                  - ./certbot/www:/var/www/certbot:ro
+                command: >
+                  /bin/sh -c "envsubst '${!EMPRESA_DOMAIN} ${!BACKEND_DOMAIN}' < /etc/nginx/templates/default.conf.template > /etc/nginx/conf.d/default.conf && (while :; do sleep 6h && nginx -s reload; done &) && nginx -g 'daemon off;'"
+
+              certbot:
+                image: certbot/certbot:latest
+                container_name: criptoself-empresa-certbot
+                restart: unless-stopped
+                volumes:
+                  - ./certbot/conf:/etc/letsencrypt
+                  - ./certbot/www:/var/www/certbot
+                entrypoint: >
+                  /bin/sh -c "trap exit TERM; while :; do certbot renew --quiet; sleep 12h && true; done"
+            COMPOSE_EOF
+
+            cat > default.conf.template <<'NGINX_EOF'
+            server {
+              listen 80; listen [::]:80;
+              server_name ${!EMPRESA_DOMAIN};
+              location /.well-known/acme-challenge/ { root /var/www/certbot; }
+              location / { return 301 https://$host$request_uri; }
+            }
+            server {
+              listen 443 ssl; listen [::]:443 ssl; http2 on;
+              server_name ${!EMPRESA_DOMAIN};
+              ssl_certificate     /etc/letsencrypt/live/${!EMPRESA_DOMAIN}/fullchain.pem;
+              ssl_certificate_key /etc/letsencrypt/live/${!EMPRESA_DOMAIN}/privkey.pem;
+              ssl_protocols TLSv1.2 TLSv1.3;
+              add_header Strict-Transport-Security "max-age=63072000" always;
+              root /usr/share/nginx/html;
+              index index.html;
+              location /assets/ { expires 1y; access_log off; add_header Cache-Control "public, immutable"; }
+              resolver 8.8.8.8 1.1.1.1 valid=300s ipv6=off;
+              location /api/ {
+                proxy_pass https://${!BACKEND_DOMAIN}/api/;
+                proxy_ssl_server_name on;
+                proxy_set_header Host ${!BACKEND_DOMAIN};
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto https;
+              }
+              location / { try_files $uri $uri/ /index.html; }
+            }
+            NGINX_EOF
+
+            cat > init-letsencrypt.sh <<'LE_EOF'
+            #!/bin/sh
+            set -e
+            if [ -z "$EMPRESA_DOMAIN" ]; then echo "Falta EMPRESA_DOMAIN"; exit 1; fi
+            if [ -z "$ADMIN_EMAIL" ];     then echo "Falta ADMIN_EMAIL";     exit 1; fi
+            DATA_PATH="./certbot"
+            # (sin early-exit - script idempotente)
+            mkdir -p "$DATA_PATH/conf" "$DATA_PATH/www"
+            LIVE="/etc/letsencrypt/live/$EMPRESA_DOMAIN"
+            docker compose run --rm --entrypoint "sh -c 'mkdir -p $LIVE && openssl req -x509 -nodes -newkey rsa:2048 -days 1 -keyout $LIVE/privkey.pem -out $LIVE/fullchain.pem -subj /CN=localhost'" certbot
+            docker compose up -d app
+            docker compose run --rm --entrypoint "sh -c 'rm -rf /etc/letsencrypt/live/$EMPRESA_DOMAIN /etc/letsencrypt/archive/$EMPRESA_DOMAIN /etc/letsencrypt/renewal/$EMPRESA_DOMAIN.conf'" certbot
+            docker compose run --rm --entrypoint "certbot certonly --webroot -w /var/www/certbot --email $ADMIN_EMAIL --agree-tos --no-eff-email --force-renewal -d $EMPRESA_DOMAIN" certbot
+            docker compose exec app nginx -s reload
+            LE_EOF
+            chmod +x init-letsencrypt.sh
+
+            aws ecr get-login-password --region ${AWS::Region} | \
+              docker login --username AWS --password-stdin ${EcrUri}
+            docker compose pull app || true
+
+            chown -R ec2-user:ec2-user /opt/criptoself
+          - EcrUri: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com"
+            EmpresaDomain: !Sub "${EmpresaSubdomain}.${DomainName}"
+            BackendDomain: !Sub "${BackendSubdomain}.${DomainName}"
+
+  EmpresaEip:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref EmpresaInstance
+      Tags:
+        - { Key: Name, Value: !Sub "${AWS::StackName}-empresa-eip" }
+
+# -------------------- Outputs --------------------
+Outputs:
+  EcrRegistry:
+    Description: URI base de ECR para los 3 repos
+    Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com"
+
+  BackendEcrUri:
+    Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/criptoself-backend"
+  UsuarioEcrUri:
+    Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/criptoself-usuario"
+  EmpresaEcrUri:
+    Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/criptoself-empresa"
+
+  BackendDomain:
+    Value: !Sub "${BackendSubdomain}.${DomainName}"
+  UsuarioDomain:
+    Value: !Sub "${UsuarioSubdomain}.${DomainName}"
+  EmpresaDomain:
+    Value: !Sub "${EmpresaSubdomain}.${DomainName}"
+
+  BackendPublicIp:
+    Description: Apuntar A-record api.<dominio> a esta IP
+    Value: !Ref BackendEip
+  UsuarioPublicIp:
+    Description: Apuntar A-record usuario.<dominio> a esta IP
+    Value: !Ref UsuarioEip
+  EmpresaPublicIp:
+    Description: Apuntar A-record empresa.<dominio> a esta IP
+    Value: !Ref EmpresaEip
+
+  SshBackend:
+    Value: !Sub "ssh -i <tu-key>.pem ec2-user@${BackendEip}"
+  SshUsuario:
+    Value: !Sub "ssh -i <tu-key>.pem ec2-user@${UsuarioEip}"
+  SshEmpresa:
+    Value: !Sub "ssh -i <tu-key>.pem ec2-user@${EmpresaEip}"

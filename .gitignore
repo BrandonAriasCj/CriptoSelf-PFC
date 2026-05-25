@@ -1,0 +1,304 @@
+# ============================================================================
+# Proyecto Final de Carrera - .gitignore
+# Backend Django + 3 frontends (React + React + Flutter) + deploy AWS
+# ============================================================================
+
+# ============================================================================
+# CRITICO: variables de entorno y credenciales
+# ============================================================================
+# Todas las variantes de .env quedan bloqueadas; SOLO se permiten los .example
+.env
+.env.*
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.*.example
+!.env.example
+!.env.*.example
+
+# Directorios de secretos
+.secrets/
+secrets/
+.credentials/
+credentials/
+.keys/
+.certs/
+
+# Build-args con secretos para el deploy
+build-args.env
+**/build-args.env
+!**/build-args.env.example
+
+# Configuracion CFN con datos reales (mantener parameters.example.json en repo)
+deploy/cloudformation/parameters.deploy.json
+deploy/.tools/
+
+# ============================================================================
+# Certificados y claves criptograficas
+# ============================================================================
+*.pem
+*.key
+*.crt
+*.cer
+*.der
+*.csr
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.truststore
+*.p7b
+*.p7c
+
+# SSH
+id_rsa*
+id_dsa*
+id_ecdsa*
+id_ed25519*
+authorized_keys
+known_hosts
+
+# GPG
+*.gpg
+*.asc
+pubring.*
+secring.*
+
+# AWS
+.aws/
+aws-credentials*
+
+# ============================================================================
+# Bases de datos y backups (pueden contener PII de usuarios reales)
+# ============================================================================
+*.sqlite
+*.sqlite3
+db.sqlite3-journal
+*.db
+*.sql
+*.dump
+*.bak
+*.backup
+backup/
+backups/
+dumps/
+dump.rdb
+*.rdb
+*.aof
+pg_dump*
+mongodump/
+
+# ============================================================================
+# Logs y runtime
+# ============================================================================
+*.log
+logs/
+*.pid
+*.pid.lock
+*.seed
+celerybeat-schedule*
+celerybeat.pid
+
+# Logs especificos del runner local
+backend_log.txt
+empresa_log.txt
+usuario_log.txt
+data.txt
+$null
+
+# ============================================================================
+# Python / Django
+# ============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.installed.cfg
+*.egg-info/
+*.egg
+MANIFEST
+develop-eggs/
+eggs/
+.eggs/
+sdist/
+wheels/
+share/python-wheels/
+pip-wheel-metadata/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Coverage
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+
+# Django runtime
+local_settings.py
+media/
+staticfiles/
+instance/
+.webassets-cache
+.scrapy
+
+# Jupyter / IPython
+.ipynb_checkpoints
+profile_default/
+ipython_config.py
+
+# Virtualenv
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+.python-version
+
+# ============================================================================
+# Node / React / Vite
+# ============================================================================
+node_modules/
+jspm_packages/
+bower_components/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Build outputs
+build/
+dist/
+dist-ssr/
+out/
+.next/
+.nuxt/
+
+# Caches
+.npm/
+.yarn/
+.pnpm-store/
+.eslintcache
+.stylelintcache
+.parcel-cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+.node_repl_history
+*.tsbuildinfo
+.yarn-integrity
+*.tgz
+.vite/
+*.local
+
+# Coverage Node
+coverage/
+.nyc_output/
+junit.xml
+
+# ============================================================================
+# Flutter / Dart
+# ============================================================================
+*.iml
+*.ipr
+*.iws
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+**/doc/api/
+**/ios/Flutter/.last_build_id
+**/lib/generated_plugin_registrant.dart
+app.*.symbols
+app.*.map.json
+**/android/app/debug
+**/android/app/profile
+**/android/app/release
+**/android/.gradle/
+**/android/local.properties
+**/android/captures/
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_assets/
+**/ios/Pods/
+**/.gradle/
+**/build/
+
+# ============================================================================
+# Docker
+# ============================================================================
+docker-compose.override.yml
+docker-compose.prod.yml
+
+# ============================================================================
+# IDEs / Editores
+# ============================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.metadata
+.buildpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+.history/
+.atom/
+
+# ============================================================================
+# Sistema operativo
+# ============================================================================
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+
+# Linux
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ============================================================================
+# Archivos comprimidos generados (NO codigo)
+# ============================================================================
+Frontend*.zip
+frontend_old.zip
+backend_*.zip
+
+# ============================================================================
+# Cypress / E2E
+# ============================================================================
+cypress/videos/
+cypress/screenshots/
