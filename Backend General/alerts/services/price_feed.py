@@ -103,3 +103,34 @@ class PriceFeed:
         if open_ == 0:
             return None
         return (close - open_) / open_ * 100.0
+
+    def get_ohlcv_series(self, symbol: str, timeframe: str, limit: int = 60) -> Optional[list]:
+        """Devuelve una serie de velas `[ts, o, h, l, c, v]` (orden cronológico).
+
+        Pensado para indicadores que necesitan historia (medias móviles, RSI).
+        Cachea por (symbol, tf, limit) ~OHLCV_TTL para no martillar exchanges:
+        el escaneo de sugerencias corre cada varios minutos y comparte feed.
+        """
+        symbol = _normalize_symbol(symbol)
+        tf = _TIMEFRAME_MAP.get(timeframe)
+        if tf is None:
+            return None
+
+        now = time.time()
+        key = (symbol, f'{tf}:{limit}')
+        cached = self._ohlcv_cache.get(key)
+        if cached and cached[1] > now:
+            return cached[0]
+
+        for ex_name in EXCHANGE_FALLBACK:
+            try:
+                exchange = getattr(ccxt, ex_name)({'enableRateLimit': True})
+                ohlcv = exchange.fetch_ohlcv(symbol, tf, limit=limit)
+                if ohlcv and len(ohlcv) >= 2:
+                    self._ohlcv_cache[key] = (ohlcv, now + OHLCV_TTL)
+                    return ohlcv
+            except Exception as exc:
+                logger.debug('get_ohlcv_series %s/%s @ %s falló: %s', symbol, tf, ex_name, exc)
+                continue
+        logger.warning('No se pudo obtener serie OHLCV para %s/%s', symbol, tf)
+        return None

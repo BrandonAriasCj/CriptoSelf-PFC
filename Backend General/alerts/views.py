@@ -1,3 +1,5 @@
+from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
@@ -13,12 +15,20 @@ from .serializers import (
     UserDeviceSerializer,
 )
 
+User = get_user_model()
 
-DIGEST_EVENT_TYPES = {
+
+# Suscripciones gestionadas por /api/alerts/subscriptions/. Cada clave es un
+# toggle on/off respaldado por un AlertRule con este event_type especial.
+SUBSCRIPTION_EVENT_TYPES = {
     'hourly': 'MARKET_DIGEST_HOURLY',
     'daily': 'MARKET_DIGEST_DAILY',
     'weekly': 'MARKET_DIGEST_WEEKLY',
+    'suggestions': 'MARKET_SUGGESTION',
 }
+
+# Alias retrocompatible (otros módulos importan DIGEST_EVENT_TYPES).
+DIGEST_EVENT_TYPES = SUBSCRIPTION_EVENT_TYPES
 
 
 class AlertRuleViewSet(viewsets.ModelViewSet):
@@ -193,3 +203,168 @@ class EventTypeView(viewsets.ViewSet):
         return Response([
             e for e in registry.describe_all() if e['user_configurable']
         ])
+
+
+# ---------------------------------------------------------------------------
+# Panel de TEST de alertas (demo en vivo desde Empresa Web)
+# ---------------------------------------------------------------------------
+
+def _demo_allowed(user) -> bool:
+    """Solo cuentas empresa o staff pueden disparar alertas de prueba."""
+    return bool(
+        getattr(user, 'is_staff', False)
+        or getattr(user, 'profile_type', None) == 'company'
+    )
+
+
+class DemoUsersView(APIView):
+    """Lista de usuarios destino (web/móvil) para el dropdown del panel de test."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not settings.ALERTS_DEMO_ENABLED:
+            return Response({'detail': 'Demo deshabilitado.'}, status=status.HTTP_403_FORBIDDEN)
+        if not _demo_allowed(request.user):
+            return Response({'detail': 'No autorizado.'}, status=status.HTTP_403_FORBIDDEN)
+        # Cualquier usuario activo puede ser destino (la notificación se entrega a
+        # su cuenta). Incluimos también cuentas 'company' — el panel marca el tipo
+        # para que el presentador sepa cuál abrir en Usuario Web.
+        users = (
+            User.objects
+            .filter(is_active=True)
+            .order_by('-date_joined')[:200]
+        )
+        return Response([
+            {
+                'id': u.id,
+                'email': u.email,
+                'name': (f'{u.first_name} {u.last_name}').strip() or u.username,
+                'profile_type': u.profile_type,
+            }
+            for u in users
+        ])
+
+
+class DemoTriggerView(APIView):
+    """Dispara una alerta de prueba de cualquiera de los 4 tipos hacia un usuario.
+
+    Body: {target_email, kind: welcome|rule|suggestion|digest, symbol?}
+    La notificación se crea y se entrega por WebSocket en tiempo real al destino.
+    """
+
+    permission_classes = [IsAuthenticated]
+    KINDS = {'welcome', 'rule', 'suggestion', 'digest'}
+
+    def post(self, request):
+        if not settings.ALERTS_DEMO_ENABLED:
+            return Response({'detail': 'Demo deshabilitado.'}, status=status.HTTP_403_FORBIDDEN)
+        if not _demo_allowed(request.user):
+            return Response({'detail': 'No autorizado.'}, status=status.HTTP_403_FORBIDDEN)
+
+        kind = request.data.get('kind')
+        if kind not in self.KINDS:
+            return Response(
+                {'detail': f'kind inválido. Use uno de {sorted(self.KINDS)}.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        target_email = (request.data.get('target_email') or '').strip()
+        target = User.objects.filter(email__iexact=target_email).first()
+        if target is None:
+            return Response(
+                {'detail': f'No existe un usuario con email {target_email!r}.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        symbol = (request.data.get('symbol') or 'BTC/USDT').strip().upper()
+
+        try:
+            notif = self._build_and_dispatch(kind, target, symbol)
+        except Exception as exc:  # noqa: BLE001 — superficie de demo, devolvemos el motivo
+            return Response(
+                {'detail': f'Error generando la alerta: {exc}'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        if notif is None:
+            return Response(
+                {'detail': 'No se pudo construir la alerta (¿sin datos de mercado para el símbolo?).'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        return Response({
+            'ok': True,
+            'delivered_to': target.email,
+            'notification': {
+                'id': notif.id,
+                'title': notif.title,
+                'body': notif.body,
+                'severity': notif.severity,
+                'payload': notif.payload,
+            },
+        })
+
+    def _build_and_dispatch(self, kind, target, symbol):
+        from .services import dispatcher
+
+        if kind == 'welcome':
+            from .services.onboarding import _WELCOME_NOTIFICATIONS, WELCOME_KIND
+            item = _WELCOME_NOTIFICATIONS[0]
+            return dispatcher.dispatch(
+                user=target,
+                title=item['title'],
+                body=item['body'],
+                severity=Notification.Severity.INFO,
+                payload={'kind': WELCOME_KIND, 'step': item['step'], 'demo': True},
+            )
+
+        if kind == 'rule':
+            from .services.price_feed import PriceFeed
+            from .services.templates import threshold_message
+            price = PriceFeed().get_price(symbol)
+            if price is None:
+                return None
+            threshold = round(price * 0.99, 2)  # ya cruzado al alza, para el demo
+            title, body = threshold_message(symbol, '>=', threshold, price)
+            return dispatcher.dispatch(
+                user=target,
+                title=title,
+                body=body,
+                severity=Notification.Severity.INFO,
+                payload={
+                    'kind': 'rule_demo', 'symbol': symbol, 'price': price,
+                    'threshold': threshold, 'operator': '>=', 'demo': True,
+                },
+            )
+
+        if kind == 'suggestion':
+            from .services.price_feed import PriceFeed
+            from .services.suggestions import analyze_crossover, build_suggestion_message
+            analysis = analyze_crossover(symbol, PriceFeed())
+            if analysis is None:
+                return None
+            msg = build_suggestion_message(analysis)
+            msg['payload']['demo'] = True
+            return dispatcher.dispatch(
+                user=target,
+                title=msg['title'],
+                body=msg['body'],
+                severity=msg['severity'],
+                payload=msg['payload'],
+            )
+
+        if kind == 'digest':
+            from .services.market_digest import build_digest
+            from .services.price_feed import PriceFeed
+            digest = build_digest('daily', feed=PriceFeed())
+            if digest is None:
+                return None
+            payload = dict(digest['payload'])
+            payload['demo'] = True
+            return dispatcher.dispatch(
+                user=target,
+                title=digest['title'],
+                body=digest['body'],
+                severity=digest['severity'],
+                payload=payload,
+            )
+
+        return None

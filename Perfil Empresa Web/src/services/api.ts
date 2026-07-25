@@ -39,6 +39,34 @@ export const authService = {
     api.patch('/auth/company/profile/', data),
 };
 
+// ── Alertas: panel de test / demo en vivo ─────────────────────────────────────
+export type DemoAlertKind = 'welcome' | 'rule' | 'suggestion' | 'digest';
+
+export interface DemoUser {
+  id: number;
+  email: string;
+  name: string;
+  profile_type?: string;
+}
+
+export interface DemoTriggerResult {
+  ok: boolean;
+  delivered_to: string;
+  notification: {
+    id: number;
+    title: string;
+    body: string;
+    severity: string;
+    payload: Record<string, unknown>;
+  };
+}
+
+export const alertsDemoService = {
+  listUsers: () => api.get<DemoUser[]>('/alerts/demo/users/').then(r => r.data),
+  trigger: (payload: { target_email: string; kind: DemoAlertKind; symbol?: string }) =>
+    api.post<DemoTriggerResult>('/alerts/demo/trigger/', payload).then(r => r.data),
+};
+
 // ── Organizations ─────────────────────────────────────────────────────────────
 export const orgService = {
   list: () => api.get('/organizations/'),
@@ -57,6 +85,8 @@ export const studentService = {
   enroll: (data: Record<string, unknown>) => api.post('/enterprise/students/', data),
   update: (id: string, data: Record<string, unknown>) => api.patch(`/enterprise/students/${id}/`, data),
   drop: (id: string) => api.delete(`/enterprise/students/${id}/`),
+  remove: (id: string) => api.delete(`/enterprise/students/${id}/`, { params: { hard: 'true' } }),
+  reactivate: (id: string) => api.patch(`/enterprise/students/${id}/`, { status: 'active' }),
   progress: (id: string) => api.get(`/enterprise/students/${id}/progress/`),
   notes: (id: string) => api.get(`/enterprise/students/${id}/notes/`),
 };

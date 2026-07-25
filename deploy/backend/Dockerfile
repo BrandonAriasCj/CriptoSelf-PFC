@@ -71,6 +71,12 @@ python manage.py collectstatic --noinput || true
 echo "[entrypoint] sincronizando OAuth Application..."
 python manage.py ensure_oauth_app || echo "[entrypoint] ensure_oauth_app no fatal, continuando"
 
+echo "[entrypoint] sembrando Criptoactivos (IDs deterministas para frontend CRYPTO_MAP)..."
+python manage.py seed_criptoactivos || echo "[entrypoint] seed_criptoactivos fallo (no fatal)"
+
+echo "[entrypoint] onboarding de notificaciones para usuarios existentes (idempotente)..."
+python manage.py onboard_existing_users || echo "[entrypoint] onboard_existing_users fallo (no fatal)"
+
 if [ -n "$DJANGO_SUPERUSER_USERNAME" ] && [ -n "$DJANGO_SUPERUSER_PASSWORD" ]; then
     echo "[entrypoint] creando superusuario si no existe..."
     python manage.py createsuperuser --noinput || true

@@ -1,8 +1,47 @@
+import 'secrets.dart';
+
 class AppConstants {
   // API Configuration
-  static const String baseUrl = 'http://10.0.2.2:8000/api/mobile'; // Android Emulator
-  // static const String baseUrl = 'http://localhost:8000/api/mobile'; // iOS Simulator
-  // static const String baseUrl = 'http://192.168.1.100:8000/api/mobile'; // Physical device
+  //
+  // El backend expone dos namespaces:
+  // - /api/mobile/* — guest devices (sin auth, identidad por device_id)
+  // - /api/auth/*  + /api/alerts/* — usuarios autenticados (OAuth2 Bearer)
+  //
+  // Default = produccion (api.criptoself.com). Para dev local override con:
+  //   flutter run --dart-define=API_HOST=http://10.0.2.2:8000   (Android Emulator)
+  //   flutter run --dart-define=API_HOST=http://localhost:8000  (iOS Simulator)
+  static const String _host = String.fromEnvironment(
+    'API_HOST',
+    defaultValue: 'https://api.criptoself.com',
+  );
+
+  static const String baseUrl = '$_host/api/mobile';
+  static const String authBaseUrl = '$_host/api/auth';
+  static const String alertsBaseUrl = '$_host/api/alerts';
+
+  // Host base (sin path). Lo usa el WebSocket de notificaciones para derivar
+  // ws:// o wss:// según el esquema (ver NotificationsSocket).
+  static const String host = _host;
+
+  // OAuth2 client credentials. Los valores viven en `secrets.dart` (gitignored).
+  // Para release o staging, sobrescribilos en runtime vía --dart-define.
+  static const String oauthClientId = String.fromEnvironment(
+    'MOBILE_OAUTH_CLIENT_ID',
+    defaultValue: defaultOauthClientId,
+  );
+  static const String oauthClientSecret = String.fromEnvironment(
+    'MOBILE_OAUTH_CLIENT_SECRET',
+    defaultValue: defaultOauthClientSecret,
+  );
+
+  // Google Sign-In: el `serverClientId` debe ser el client_id Web del proyecto
+  // de Google Cloud (no el Android/iOS). Es lo que permite que el backend
+  // valide el server_auth_code emitido por Google.
+  static const String googleServerClientId = String.fromEnvironment(
+    'GOOGLE_SERVER_CLIENT_ID',
+    defaultValue: defaultGoogleServerClientId,
+  );
+
   
   // App Information
   static const String appName = 'CriptoSelf Mobile';

@@ -64,11 +64,16 @@ export interface WsPongMessage {
 
 export type WsInbound = WsConnectedMessage | WsNotificationMessage | WsPongMessage;
 
-// Suscripciones a digests periódicos del mercado.
+// Suscripciones gestionadas desde /api/alerts/subscriptions/.
+// `hourly|daily|weekly` son digests periódicos; `suggestions` son señales
+// técnicas (cruce de medias) que llegan cuando el escaneo las detecta.
 export type Cadence = 'hourly' | 'daily' | 'weekly';
 
 export interface SubscriptionsState {
   hourly: boolean;
   daily: boolean;
   weekly: boolean;
+  suggestions: boolean;
 }
+
+export type SubscriptionKey = keyof SubscriptionsState;

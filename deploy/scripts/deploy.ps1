@@ -32,7 +32,10 @@ param(
     [switch]$Reset
 )
 
-$ErrorActionPreference = 'Stop'
+# 'Continue' (no 'Stop'): aws CLI y docker emiten warnings benignos a stderr y
+# PS 5.1 con 'Stop' los envuelve como NativeCommandError fatal. El orchestrator
+# valida $LASTEXITCODE y/o el .Status del SSM tras cada operacion critica.
+$ErrorActionPreference = 'Continue'
 . "$PSScriptRoot\lib.ps1"
 Refresh-Path
 
@@ -455,14 +458,50 @@ function Phase-Redeploy {
     Phase-Build
 
     # 2. SSM en las EC2 afectadas para pull + recreate
+    # Necesitamos los outputs del stack para asegurar que /opt/criptoself/.env
+    # existe (algunos hosts fueron arrancados con env in-line y no tienen .env).
+    if (-not $Script:StackOutputs) { $Script:StackOutputs = Get-StackOutputs -StackName $StackName -Region $Region }
+    $outs = $Script:StackOutputs
     $stackInst = Get-StackInstances
+
+    # Map svc -> bloque .env que el compose del host espera (ver deploy/<svc>/docker-compose.yml).
+    # Para backend, Phase-UpdateEnv ya tiene su propia logica; aqui evitamos sobreescribirla.
+    $envBlocks = @{
+        usuario = @"
+ECR_USUARIO_IMAGE=$($Script:AwsAccountId).dkr.ecr.$Region.amazonaws.com/criptoself-usuario:latest
+USUARIO_DOMAIN=$($outs.UsuarioDomain)
+BACKEND_DOMAIN=$($outs.BackendDomain)
+"@
+        empresa = @"
+ECR_EMPRESA_IMAGE=$($Script:AwsAccountId).dkr.ecr.$Region.amazonaws.com/criptoself-empresa:latest
+EMPRESA_DOMAIN=$($outs.EmpresaDomain)
+BACKEND_DOMAIN=$($outs.BackendDomain)
+"@
+    }
+
     foreach ($svc in Resolve-Services) {
         $iid = $stackInst[$svc]
         if (-not $iid) { Write-Warn "${svc}: no encuentro instance-id"; continue }
 
+        # Para frontends, escribir .env si no existe (idempotente: solo crea si falta).
+        $ensureEnv = ''
+        if ($envBlocks.ContainsKey($svc)) {
+            $envBlock = $envBlocks[$svc]
+            $ensureEnv = @"
+if [ ! -f /opt/criptoself/.env ]; then
+    cat > /opt/criptoself/.env <<'ENV_EOF'
+$envBlock
+ENV_EOF
+    chown ec2-user:ec2-user /opt/criptoself/.env
+    chmod 600 /opt/criptoself/.env
+fi
+"@
+        }
+
         $bash = @"
 set -euxo pipefail
 cd /opt/criptoself
+$ensureEnv
 aws ecr get-login-password --region $Region | docker login --username AWS --password-stdin $($Script:AwsAccountId).dkr.ecr.$Region.amazonaws.com
 docker compose pull app
 # --no-deps: no toca nginx (backend) o no afecta certbot (frontends). Solo recrea 'app'.

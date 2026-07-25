@@ -84,6 +84,9 @@ services:
       - sqlite-data:/data
     networks: [backend-net]
     entrypoint: ["/usr/bin/tini", "--"]
+    # --schedule persiste el last_run_at en el volumen /data: sin esto, cada
+    # reinicio de beat re-dispara los digests crontab (los considera "due" al
+    # arrancar) y spamea a todos los suscriptores en cada deploy.
     command:
       - celery
       - -A
@@ -91,6 +94,10 @@ services:
       - beat
       - -l
       - info
+      - --schedule
+      - /data/celerybeat-schedule
+      - --pidfile
+      - /tmp/celerybeat.pid
 
   nginx:
     image: nginx:1.27-alpine
@@ -110,7 +117,7 @@ services:
       - media-data:/var/www/media:ro
     networks: [backend-net]
     # Procesa templates con envsubst (el docker-entrypoint del nginx alpine solo lo hace
-    # cuando el CMD empieza con "nginx" — al sobrescribirlo con /bin/sh hay que hacerlo a mano)
+    # cuando el CMD empieza con "nginx" - al sobrescribirlo con /bin/sh hay que hacerlo a mano)
     # + reload periodico para tomar nuevos certs tras renovacion.
     command:
       - /bin/sh

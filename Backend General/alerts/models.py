@@ -135,3 +135,29 @@ class UserDevice(models.Model):
 
     def __str__(self):
         return f'{self.platform}:{self.name or self.token[:12]} · user={self.user_id}'
+
+
+class SuggestionSignalState(models.Model):
+    """Última señal de sugerencia emitida por (símbolo, timeframe).
+
+    Sirve de dedup para el escaneo periódico: solo se vuelve a alertar un cruce
+    cuando ocurre en una vela MÁS NUEVA que `last_candle_ts`. Así, mientras la
+    señal persiste entre escaneos, no se re-notifica.
+    """
+
+    symbol = models.CharField(max_length=32)
+    timeframe = models.CharField(max_length=8)
+    last_signal = models.CharField(max_length=16, blank=True)
+    last_candle_ts = models.BigIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['symbol', 'timeframe'],
+                name='alerts_suggestionstate_unique_symbol_tf',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.symbol}/{self.timeframe} · {self.last_signal} @ {self.last_candle_ts}'

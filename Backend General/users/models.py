@@ -19,6 +19,9 @@ class User(AbstractUser):
     phone_number = models.CharField(_('phone number'), max_length=20, blank=True)
     date_of_birth = models.DateField(_('date of birth'), null=True, blank=True)
     avatar = models.ImageField(_('avatar'), upload_to='avatars/', null=True, blank=True)
+    # URL externa (ej. foto de perfil de Google). Independiente del `avatar`
+    # subido localmente — el cliente decide cuál mostrar.
+    avatar_url = models.URLField(_('avatar URL'), max_length=500, blank=True, default='')
     bio = models.TextField(_('bio'), max_length=500, blank=True)
 
     # Tipo de perfil — diferencia el cliente que usa este usuario

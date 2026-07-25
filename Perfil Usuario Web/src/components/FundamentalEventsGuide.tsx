@@ -10,70 +10,70 @@ export const FundamentalEventsGuide: React.FC<FundamentalEventsGuideProps> = ({ 
 
   const eventTypes = [
     {
-      category: "🏛️ Intervenciones Gubernamentales",
-      description: "Acciones directas de gobiernos que afectan el mercado cripto",
-      examples: [
-        "Prohibiciones (China baneando Bitcoin)",
-        "Adopción oficial (El Salvador)",
-        "Liquidaciones masivas (Alemania vendiendo BTC incautado)",
-        "Regulaciones nuevas (ETFs aprobados por SEC)"
-      ],
-      impact: "Suelen tener el mayor impacto por su alcance legal y económico"
-    },
-    {
-      category: "🏦 Crisis del Sistema Financiero",
-      description: "Fallos en el sistema bancario tradicional que benefician a Bitcoin",
-      examples: [
-        "Colapso de bancos (Silicon Valley Bank)",
-        "Crisis de liquidez bancaria",
-        "Inflación descontrolada",
-        "Devaluaciones monetarias"
-      ],
-      impact: "Bitcoin tiende a subir como refugio de valor alternativo"
-    },
-    {
-      category: "🏢 Adopción Institucional",
-      description: "Grandes corporaciones o instituciones adoptando Bitcoin",
-      examples: [
-        "Tesla comprando $1.5B en Bitcoin",
-        "ETFs institucionales (BlackRock, Fidelity)",
-        "Bancos ofreciendo servicios cripto",
-        "Países adoptando Bitcoin como reserva"
-      ],
-      impact: "Genera confianza y entrada masiva de capital"
-    },
-    {
-      category: "⚔️ Eventos Geopolíticos",
-      description: "Conflictos, guerras y tensiones internacionales",
+      category: "⚔️ Conflictos Bélicos y Guerras",
+      description: "Guerras y conflictos armados que reordenan el equilibrio mundial",
       examples: [
         "Guerra Rusia-Ucrania",
-        "Sanciones internacionales",
-        "Conflictos en Medio Oriente",
-        "Tensiones comerciales"
+        "Guerra en Gaza (Israel-Hamás)",
+        "Escalada militar Israel-Irán",
+        "Conflictos regionales en Medio Oriente"
       ],
-      impact: "Volatilidad inicial, luego Bitcoin como refugio ante sanciones"
+      impact: "Genera fuerte volatilidad y aversión al riesgo en los mercados globales"
     },
     {
-      category: "💥 Crisis Internas del Cripto",
-      description: "Fallos y fraudes dentro del ecosistema cripto",
+      category: "🏛️ Decisiones de Gobiernos",
+      description: "Acciones directas de Estados que afectan a la economía mundial",
       examples: [
-        "Colapso de FTX (fraude)",
-        "Caída de Terra/LUNA (fallo algorítmico)",
-        "Hacks de exchanges",
-        "Proyectos Ponzi revelados"
+        "Prohibiciones (China prohíbe las criptomonedas)",
+        "Confinamientos y cierres por la pandemia COVID-19",
+        "Política monetaria y subidas de tasas",
+        "Nacionalizaciones e intervenciones estatales"
       ],
-      impact: "Pérdida de confianza temporal, pero fortalece a Bitcoin a largo plazo"
+      impact: "Suelen tener gran impacto por su alcance legal y económico"
     },
     {
-      category: "⚡ Eventos Programados",
-      description: "Eventos predecibles en el código de Bitcoin",
+      category: "🗳️ Eventos Políticos",
+      description: "Cambios de gobierno y procesos electorales clave",
       examples: [
-        "Halvings (reducción de recompensa)",
-        "Actualizaciones de protocolo",
-        "Dificultad de minería",
-        "Fechas de vencimiento de derivados"
+        "Elecciones presidenciales en EE.UU.",
+        "Cambios de liderazgo en grandes potencias",
+        "Referendos y crisis institucionales",
+        "Giros en la política económica"
       ],
-      impact: "Efectos predecibles basados en oferta y demanda"
+      impact: "Expectativa y volatilidad ante posibles cambios de rumbo"
+    },
+    {
+      category: "🛃 Tensiones Comerciales y Sanciones",
+      description: "Guerras comerciales y sanciones entre países",
+      examples: [
+        "Aranceles entre EE.UU. y China",
+        "Sanciones internacionales a Rusia",
+        "Restricciones a la exportación de tecnología",
+        "Bloqueos comerciales"
+      ],
+      impact: "Aversión al riesgo y reordenamiento del comercio mundial"
+    },
+    {
+      category: "🛢️ Crisis Energéticas y de Recursos",
+      description: "Disrupciones en el suministro de energía y materias primas",
+      examples: [
+        "Sabotaje de gasoductos (Nord Stream)",
+        "Cortes de gas como arma geopolítica",
+        "Shocks en el precio del petróleo",
+        "Bloqueos de rutas comerciales"
+      ],
+      impact: "Disparan la inflación y condicionan la política de los bancos centrales"
+    },
+    {
+      category: "🌍 Crisis Globales",
+      description: "Eventos de alcance mundial que afectan a todas las economías",
+      examples: [
+        "Pandemias (COVID-19)",
+        "Catástrofes naturales de gran escala",
+        "Crisis migratorias",
+        "Inestabilidad geopolítica generalizada"
+      ],
+      impact: "Pánico inicial y huida hacia activos considerados refugio"
     }
   ];
 
@@ -83,7 +83,7 @@ export const FundamentalEventsGuide: React.FC<FundamentalEventsGuideProps> = ({ 
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-              🎯 Guía de Eventos Fundamentales
+              🌍 Guía de Eventos Geopolíticos
             </h2>
             <button
               onClick={onClose}
@@ -95,12 +95,13 @@ export const FundamentalEventsGuide: React.FC<FundamentalEventsGuideProps> = ({ 
 
           <div className="mb-6 p-4 bg-blue-900/20 border border-blue-700/50 rounded-lg">
             <h3 className="text-lg font-semibold text-blue-300 mb-2">
-              💡 ¿Por qué son importantes los eventos fundamentales?
+              💡 ¿Por qué importan los eventos geopolíticos?
             </h3>
             <p className="text-gray-300 text-sm">
-              Los indicadores técnicos (RSI, MACD, etc.) solo muestran <strong>qué</strong> está pasando con el precio, 
-              pero los eventos fundamentales explican <strong>por qué</strong> está pasando. Entender las causas reales 
-              te ayuda a tomar mejores decisiones de trading y no solo seguir señales técnicas ciegas.
+              El precio de un activo no se mueve solo por gráficos: guerras, decisiones de gobiernos, elecciones
+              y tensiones internacionales explican <strong>por qué</strong> ocurren los grandes movimientos.
+              Entender estas causas geopolíticas te permite leer el pasado del mercado con contexto real, más
+              allá de lo que muestran los indicadores técnicos.
             </p>
           </div>
 
@@ -135,13 +136,13 @@ export const FundamentalEventsGuide: React.FC<FundamentalEventsGuideProps> = ({ 
 
           <div className="mt-6 p-4 bg-green-900/20 border border-green-700/50 rounded-lg">
             <h3 className="text-lg font-semibold text-green-300 mb-2">
-              📚 Cómo usar esta información en trading
+              📚 Cómo leer estos eventos
             </h3>
             <div className="text-gray-300 text-sm space-y-2">
-              <p><strong>1. Contexto histórico:</strong> Observa cómo eventos similares afectaron el precio en el pasado</p>
-              <p><strong>2. Timing:</strong> Los efectos pueden ser inmediatos (pánico) o a largo plazo (adopción)</p>
-              <p><strong>3. Correlación:</strong> Combina análisis fundamental con técnico para mejores decisiones</p>
-              <p><strong>4. Gestión de riesgo:</strong> Ajusta posiciones antes de eventos conocidos (regulaciones, halvings)</p>
+              <p><strong>1. Contexto histórico:</strong> Observa cómo conflictos o decisiones similares afectaron el precio en el pasado</p>
+              <p><strong>2. Timing:</strong> Los efectos pueden ser inmediatos (pánico) o prolongados (guerras, sanciones)</p>
+              <p><strong>3. Causa y efecto:</strong> Relaciona cada movimiento del precio con el evento geopolítico que lo explica</p>
+              <p><strong>4. Anticipación:</strong> Identifica eventos conocidos (elecciones, escaladas) que suelen mover el mercado</p>
             </div>
           </div>
 

@@ -50,7 +50,11 @@ class RegisterCompanyView(generics.CreateAPIView):
     permission_classes = [permissions.AllowAny]
 
     def create(self, request, *args, **kwargs):
+        from datetime import timedelta
+        from django.utils import timezone
+        from django.utils.text import slugify
         from users.models import CompanyProfile
+        from organizations.models import Organization, OrganizationAdmin
 
         # Validar datos del usuario
         serializer = self.get_serializer(data=request.data)
@@ -101,12 +105,46 @@ class RegisterCompanyView(generics.CreateAPIView):
             defaults=company_data
         )
 
+        # Crear Organization + admin link para que el panel empresa funcione
+        # desde el primer login. Sin esto, todos los endpoints /organizations/
+        # devuelven vacio y los CRUDs (students, challenges, etc) quedan
+        # bloqueados por requerir un orgId.
+        base_slug = slugify(company_data['company_name']) or f"org-{user.id}"
+        slug = base_slug
+        suffix = 1
+        while Organization.objects.filter(slug=slug).exists():
+            suffix += 1
+            slug = f"{base_slug}-{suffix}"
+
+        now = timezone.now()
+        org = Organization.objects.create(
+            name=company_data['company_name'],
+            slug=slug,
+            organization_type=request.data.get('organization_type') or 'other',
+            email=user.email,
+            country=company_data.get('company_country') or '',
+            city=company_data.get('company_city') or '',
+            subscription_start=now,
+            subscription_end=now + timedelta(days=30),  # trial 30d
+            trial_end_date=now + timedelta(days=30),
+        )
+        OrganizationAdmin.objects.create(
+            user=user,
+            organization=org,
+            is_primary_admin=True,
+            can_manage_students=True,
+            can_create_courses=True,
+            can_view_analytics=True,
+            can_manage_organization=True,
+        )
+
         # Refrescar desde DB para que la respuesta refleje los datos guardados
         user.refresh_from_db()
 
         return Response({
             'message': 'Cuenta de empresa creada exitosamente',
-            'user': UserSerializer(user).data
+            'user': UserSerializer(user).data,
+            'organization_id': str(org.id),
         }, status=status.HTTP_201_CREATED)
 
 
@@ -595,10 +633,18 @@ def google_exchange_code(request):
                 user.is_verified = True
                 user.email_verified = True
                 updated = True
-            
+
+            # Sincronizar la foto de perfil de Google. Se guarda en `avatar_url`
+            # (URL externa) para no pisar un avatar que el usuario haya subido
+            # manualmente; el cliente decide cuál mostrar.
+            picture = user_info.get('picture')
+            if picture and user.avatar_url != picture:
+                user.avatar_url = picture
+                updated = True
+
             if updated:
                 user.save()
-                
+
         except User.DoesNotExist:
             return Response({
                 'error': 'Usuario no registrado',
@@ -731,15 +777,16 @@ def google_register(request):
             username=username,
             first_name=user_info.get('given_name', ''),
             last_name=user_info.get('family_name', ''),
+            avatar_url=user_info.get('picture', ''),
             is_verified=True,
             email_verified=True,
         )
-        
+
         # Crear token OAuth2
         from oauth2_provider.models import Application, AccessToken
         from datetime import datetime, timedelta
         import secrets
-        
+
         application = Application.objects.first()
         if not application:
             return Response({
@@ -774,6 +821,152 @@ def google_register(request):
         return Response({
             'error': f'Error en registro con Google: {str(e)}'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.AllowAny])
+def google_mobile_exchange(request):
+    """Login con Google desde la app móvil (Flutter).
+
+    Diferencias vs `google_exchange_code` (web):
+    - Recibe `server_auth_code` (el campo `serverAuthCode` que devuelve el
+      plugin `google_sign_in` con `serverClientId` configurado).
+    - Al canjearlo con Google, el `redirect_uri` debe ir vacío — el code se
+      generó desde un cliente nativo, no desde una redirect URL del navegador.
+    - Auto-crea la cuenta si no existe (UX de un solo tap; el web pide
+      registro previo).
+    """
+
+    server_auth_code = request.data.get('server_auth_code') or request.data.get('code')
+    if not server_auth_code:
+        return Response(
+            {'error': 'server_auth_code es requerido'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        token_response = requests.post(
+            'https://oauth2.googleapis.com/token',
+            data={
+                'client_id': settings.GOOGLE_CLIENT_ID,
+                'client_secret': settings.GOOGLE_CLIENT_SECRET,
+                'code': server_auth_code,
+                'grant_type': 'authorization_code',
+                # Vacío: el code viene de un cliente nativo, no de un redirect.
+                'redirect_uri': '',
+            },
+        )
+        if token_response.status_code != 200:
+            return Response(
+                {
+                    'error': 'Google rechazó el server_auth_code',
+                    'details': token_response.json(),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        google_access_token = token_response.json().get('access_token')
+        if not google_access_token:
+            return Response(
+                {'error': 'Google no devolvió access_token'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user_info_response = requests.get(
+            'https://www.googleapis.com/oauth2/v2/userinfo',
+            headers={'Authorization': f'Bearer {google_access_token}'},
+        )
+        if user_info_response.status_code != 200:
+            return Response(
+                {'error': 'No se pudo obtener el perfil de Google'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user_info = user_info_response.json()
+        email = user_info.get('email')
+        if not email:
+            return Response(
+                {'error': 'Google no expuso el email'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        picture = user_info.get('picture') or ''
+        user, created = User.objects.get_or_create(
+            email=email,
+            defaults={
+                'username': _unique_username_from_email(email),
+                'first_name': user_info.get('given_name', ''),
+                'last_name': user_info.get('family_name', ''),
+                'avatar_url': picture,
+                'is_verified': True,
+                'email_verified': True,
+            },
+        )
+        if not created:
+            # Refrescamos campos vacíos a partir del perfil de Google y
+            # actualizamos el avatar (Google rota URLs cada cierto tiempo).
+            changed = False
+            if not user.first_name and user_info.get('given_name'):
+                user.first_name = user_info['given_name']
+                changed = True
+            if not user.last_name and user_info.get('family_name'):
+                user.last_name = user_info['family_name']
+                changed = True
+            if picture and user.avatar_url != picture:
+                user.avatar_url = picture
+                changed = True
+            if not user.email_verified:
+                user.email_verified = True
+                user.is_verified = True
+                changed = True
+            if changed:
+                user.save()
+
+        application = Application.objects.first()
+        if application is None:
+            return Response(
+                {'error': 'No hay Application OAuth2 configurada.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        from datetime import timedelta
+        import secrets
+        from django.utils import timezone
+
+        oauth2_config = getattr(settings, 'OAUTH2_PROVIDER', {})
+        expires_seconds = oauth2_config.get('ACCESS_TOKEN_EXPIRE_SECONDS', 36000)
+        access_token_obj = AccessToken.objects.create(
+            user=user,
+            application=application,
+            token=secrets.token_urlsafe(30),
+            expires=timezone.now() + timedelta(seconds=expires_seconds),
+            scope='read write',
+        )
+
+        return Response({
+            'access_token': access_token_obj.token,
+            'token_type': 'Bearer',
+            'expires_in': expires_seconds,
+            'scope': 'read write',
+            'user': UserSerializer(user).data,
+            'created': created,
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return Response(
+            {'error': f'Error en login Google móvil: {e}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+def _unique_username_from_email(email: str) -> str:
+    base = email.split('@')[0]
+    candidate = base
+    counter = 1
+    while User.objects.filter(username=candidate).exists():
+        candidate = f'{base}{counter}'
+        counter += 1
+    return candidate
 
 
 @api_view(['GET', 'POST'])

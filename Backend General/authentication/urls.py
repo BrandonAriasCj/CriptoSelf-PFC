@@ -22,6 +22,8 @@ urlpatterns = [
     path('social/', views.SocialAuthView.as_view(), name='social_auth'),
     path('google/exchange-code/', views.google_exchange_code, name='google_exchange_code'),
     path('google/register/', views.google_register, name='google_register'),
+    # Flujo Google nativo para la app móvil (Flutter `google_sign_in`).
+    path('google/mobile-exchange/', views.google_mobile_exchange, name='google_mobile_exchange'),
 
     # ── Django Allauth ───────────────────────────────────────────────
     path('accounts/', include('allauth.urls')),

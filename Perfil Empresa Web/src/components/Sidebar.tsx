@@ -6,6 +6,7 @@ import {
   TrophyIcon,
   ChartBarIcon,
   BuildingOffice2Icon,
+  BellAlertIcon,
   ArrowRightOnRectangleIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../contexts/AuthContext';
@@ -28,8 +29,9 @@ const NAV: NavItem[] = [
   { to: '/dashboard',    Icon: Squares2X2Icon,        label: 'Dashboard',   section: 'Principal' },
   { to: '/students',     Icon: UsersIcon,             label: 'Integrantes', section: 'Equipo' },
   { to: '/challenges',   Icon: TrophyIcon,            label: 'Retos',       section: 'Gamificación' },
-  { to: '/gamification', Icon: ChartBarIcon,          label: 'Leaderboard', section: 'Gamificación' },
-  { to: '/profile',      Icon: BuildingOffice2Icon,   label: 'Mi Empresa',  section: 'Cuenta' },
+  { to: '/gamification', Icon: ChartBarIcon,          label: 'Leaderboard',     section: 'Gamificación' },
+  { to: '/alerts-test',  Icon: BellAlertIcon,         label: 'Test de Alertas', section: 'Herramientas' },
+  { to: '/profile',      Icon: BuildingOffice2Icon,   label: 'Mi Empresa',      section: 'Cuenta' },
 ];
 
 export default function Sidebar({ onNavigate }: Props) {

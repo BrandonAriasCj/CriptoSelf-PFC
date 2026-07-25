@@ -2,15 +2,15 @@
 
 import React, { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { CalendarDays, CalendarRange, Clock, Loader2 } from 'lucide-react';
+import { CalendarDays, CalendarRange, Clock, LineChart, Loader2 } from 'lucide-react';
 
 import { Card, CardContent } from '../ui/card';
 import { Switch } from '../ui/switch';
 import { subscriptionsApi } from '../../services/notifications';
-import type { Cadence, SubscriptionsState } from '../../types/alerts';
+import type { SubscriptionKey, SubscriptionsState } from '../../types/alerts';
 
 interface SubscriptionDescriptor {
-  cadence: Cadence;
+  key: SubscriptionKey;
   title: string;
   description: string;
   Icon: React.ComponentType<{ className?: string }>;
@@ -18,25 +18,32 @@ interface SubscriptionDescriptor {
 
 const SUBSCRIPTIONS: SubscriptionDescriptor[] = [
   {
-    cadence: 'hourly',
+    key: 'hourly',
     title: 'Resumen cada hora',
     description:
       'Precio y cambio % de BTC, ETH y SOL al inicio de cada hora. Útil para seguir el mercado de cerca durante el día.',
     Icon: Clock,
   },
   {
-    cadence: 'daily',
+    key: 'daily',
     title: 'Resumen diario',
     description:
       'El cierre de 24h de los principales pares, todos los días a las 09:00 UTC. Una mirada diaria sin saturar.',
     Icon: CalendarDays,
   },
   {
-    cadence: 'weekly',
+    key: 'weekly',
     title: 'Resumen semanal',
     description:
       'Cómo terminaron la semana los principales pares. Llega los lunes a las 09:00 UTC.',
     Icon: CalendarRange,
+  },
+  {
+    key: 'suggestions',
+    title: 'Sugerencias del mercado',
+    description:
+      'Señales técnicas sobre los principales pares (cruce de medias). Llegan cuando el sistema detecta el patrón. Es información, no una recomendación de inversión.',
+    Icon: LineChart,
   },
 ];
 
@@ -45,9 +52,10 @@ export const MarketSubscriptions: React.FC = () => {
     hourly: false,
     daily: false,
     weekly: false,
+    suggestions: false,
   });
   const [loading, setLoading] = useState(true);
-  const [savingCadence, setSavingCadence] = useState<Cadence | null>(null);
+  const [savingKey, setSavingKey] = useState<SubscriptionKey | null>(null);
 
   useEffect(() => {
     subscriptionsApi
@@ -60,13 +68,13 @@ export const MarketSubscriptions: React.FC = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  const toggle = async (cadence: Cadence, next: boolean) => {
-    setSavingCadence(cadence);
+  const toggle = async (key: SubscriptionKey, next: boolean) => {
+    setSavingKey(key);
     // Optimismo local — revertimos si el backend falla.
     const previous = state;
-    setState({ ...state, [cadence]: next });
+    setState({ ...state, [key]: next });
     try {
-      const updated = await subscriptionsApi.update({ [cadence]: next });
+      const updated = await subscriptionsApi.update({ [key]: next });
       setState(updated);
       toast.success(next ? 'Suscripción activada' : 'Suscripción desactivada');
     } catch (err) {
@@ -74,7 +82,7 @@ export const MarketSubscriptions: React.FC = () => {
       setState(previous);
       toast.error('No se pudo actualizar la suscripción');
     } finally {
-      setSavingCadence(null);
+      setSavingKey(null);
     }
   };
 
@@ -94,8 +102,8 @@ export const MarketSubscriptions: React.FC = () => {
       </p>
 
       <div className="space-y-2">
-        {SUBSCRIPTIONS.map(({ cadence, title, description, Icon }) => (
-          <Card key={cadence}>
+        {SUBSCRIPTIONS.map(({ key, title, description, Icon }) => (
+          <Card key={key}>
             <CardContent className="py-4 px-4 flex items-center gap-4">
               <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
                 <Icon className="w-5 h-5 text-blue-500" />
@@ -105,9 +113,9 @@ export const MarketSubscriptions: React.FC = () => {
                 <p className="text-xs text-secondary-adaptive mt-0.5">{description}</p>
               </div>
               <Switch
-                checked={state[cadence]}
-                onCheckedChange={(v) => toggle(cadence, v)}
-                disabled={savingCadence === cadence}
+                checked={state[key]}
+                onCheckedChange={(v) => toggle(key, v)}
+                disabled={savingKey === key}
                 aria-label={`Activar ${title}`}
               />
             </CardContent>

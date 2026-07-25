@@ -46,6 +46,8 @@ class PriceThresholdEvent(EventType):
 
     @classmethod
     def evaluate(cls, params, market_state):
+        from alerts.services.templates import threshold_message
+
         symbol = params['symbol']
         operator = params['operator']
         value = float(params['value'])
@@ -56,9 +58,10 @@ class PriceThresholdEvent(EventType):
             return None
         if operator == '<=' and price > value:
             return None
+        title, body = threshold_message(symbol, operator, value, price)
         return {
-            'title': f'{symbol} {operator} {value:g}',
-            'body': f'Precio actual: {price:g}',
+            'title': title,
+            'body': body,
             'severity': cls.severity_default,
             'payload': {
                 'symbol': symbol,
@@ -100,6 +103,8 @@ class PriceChangePctEvent(EventType):
 
     @classmethod
     def evaluate(cls, params, market_state):
+        from alerts.services.templates import change_pct_message
+
         symbol = params['symbol']
         window = params['window']
         threshold = float(params['change_pct'])
@@ -111,9 +116,8 @@ class PriceChangePctEvent(EventType):
             return None
         if threshold < 0 and change > threshold:
             return None
-        direction = 'subió' if change >= 0 else 'cayó'
         return {
-            'title': f'{symbol} {direction} {abs(change):.2f}% en {window}',
+            'title': change_pct_message(symbol, window, change),
             'body': '',
             'severity': cls.severity_default,
             'payload': {
@@ -177,3 +181,25 @@ class MarketDigestWeeklyEvent(_MarketDigestEvent):
     code = 'MARKET_DIGEST_WEEKLY'
     label = 'Resumen semanal del mercado'
     description = 'Precios y cambios % de los símbolos principales en los últimos 7 días.'
+
+
+@register
+class MarketSuggestionEvent(EventType):
+    """Sugerencias técnicas del mercado (cruce de medias).
+
+    Como los digests, es un marcador de suscripción: el usuario solo activa/desactiva
+    desde /api/alerts/subscriptions/. No se evalúa por el loop genérico — lo dispara
+    la tarea Celery `alerts.tasks.scan_market_suggestions` cuando detecta un cruce.
+    """
+
+    code = 'MARKET_SUGGESTION'
+    label = 'Sugerencias del mercado'
+    description = 'Señales técnicas (cruce de medias) sobre los principales pares.'
+    user_configurable = False
+    evaluator_handles = False
+    severity_default = 'info'
+    params_schema = []
+
+    @classmethod
+    def evaluate(cls, params, market_state):
+        return None

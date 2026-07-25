@@ -119,6 +119,10 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TIMEZONE = 'UTC'
 
+# Panel de test de alertas (Empresa Web → /api/alerts/demo/*). Permite disparar
+# notificaciones a demanda para demos en vivo. Apagable por env tras la presentación.
+ALERTS_DEMO_ENABLED = os.getenv('ALERTS_DEMO_ENABLED', 'true').lower() == 'true'
+
 # Database
 DATABASES = {
     'default': {

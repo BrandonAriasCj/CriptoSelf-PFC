@@ -4,6 +4,7 @@ import 'package:pull_to_refresh/pull_to_refresh.dart';
 import '../providers/device_provider.dart';
 import '../providers/notifications_provider.dart';
 import '../models/notification_model.dart';
+import '../utils/alert_templates.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -15,8 +16,12 @@ class NotificationsScreen extends StatefulWidget {
 class _NotificationsScreenState extends State<NotificationsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final RefreshController _refreshController = RefreshController();
-  
+  // Un RefreshController POR tab: pull_to_refresh prohíbe compartir un mismo
+  // controller entre varios SmartRefresher (falla la assertion en TabBarView).
+  final Map<NotificationFilter, RefreshController> _refreshControllers = {
+    for (final f in NotificationFilter.values) f: RefreshController(),
+  };
+
   @override
   void initState() {
     super.initState();
@@ -26,7 +31,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   @override
   void dispose() {
     _tabController.dispose();
-    _refreshController.dispose();
+    for (final c in _refreshControllers.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -95,21 +102,27 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             break;
         }
 
-        if (notifications.isEmpty) {
+        // Ocultamos digests "fallidos" generados por el backend viejo (todos
+        // los items sin datos). Las notificaciones nuevas ya no se crean así.
+        final visible = notifications
+            .where((n) => !isFailedDigest(n.payload))
+            .toList(growable: false);
+
+        if (visible.isEmpty) {
           return _buildEmptyState(filter);
         }
 
         return SmartRefresher(
-          controller: _refreshController,
+          controller: _refreshControllers[filter]!,
           enablePullDown: true,
           enablePullUp: true,
-          onRefresh: () => _onRefresh(deviceProvider.device?.deviceId),
-          onLoading: () => _onLoading(deviceProvider.device?.deviceId),
+          onRefresh: () => _onRefresh(filter, deviceProvider.device?.deviceId),
+          onLoading: () => _onLoading(filter, deviceProvider.device?.deviceId),
           child: ListView.builder(
             padding: const EdgeInsets.all(8),
-            itemCount: notifications.length,
+            itemCount: visible.length,
             itemBuilder: (context, index) {
-              final notification = notifications[index];
+              final notification = visible[index];
               return _buildNotificationCard(notification, deviceProvider.device?.deviceId);
             },
           ),
@@ -119,6 +132,13 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   }
 
   Widget _buildNotificationCard(NotificationModel notification, String? deviceId) {
+    final digestItems = digestItemsFromPayload(notification.payload);
+    String? digestHeadline;
+    if (digestItems != null) {
+      final stored = notification.payload?['headline'] as String?;
+      digestHeadline = stored ?? computeDigestHeadline(digestItems, notification.id);
+    }
+
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       elevation: notification.isRead ? 1 : 3,
@@ -142,8 +162,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                     child: Text(
                       notification.title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: notification.isRead 
-                            ? FontWeight.normal 
+                        fontWeight: notification.isRead
+                            ? FontWeight.normal
                             : FontWeight.w600,
                       ),
                     ),
@@ -171,18 +191,34 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 8),
-              
-              // Cuerpo del mensaje
-              Text(
-                notification.body,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: notification.isRead 
-                      ? Colors.grey.shade600 
-                      : null,
+
+              if (digestItems != null) ...[
+                if (digestHeadline != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      digestHeadline,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: notification.isRead
+                                ? Colors.grey.shade600
+                                : null,
+                          ),
+                    ),
+                  ),
+                _DigestItemsView(items: digestItems),
+              ] else ...[
+                // Cuerpo del mensaje
+                Text(
+                  notification.body,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: notification.isRead
+                        ? Colors.grey.shade600
+                        : null,
+                  ),
                 ),
-              ),
+              ],
               
               // Información adicional
               if (notification.ruleName != null) ...[
@@ -304,20 +340,27 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     }
   }
 
-  Future<void> _onRefresh(String? deviceId) async {
-    if (deviceId == null) return;
-    
+  Future<void> _onRefresh(NotificationFilter filter, String? deviceId) async {
     final provider = Provider.of<NotificationsProvider>(context, listen: false);
-    await provider.refreshNotifications(deviceId);
-    _refreshController.refreshCompleted();
+    try {
+      // En modo autenticado el deviceId se ignora; en guest hace falta.
+      if (provider.isAuthenticatedMode || deviceId != null) {
+        await provider.refreshNotifications(deviceId ?? '');
+      }
+    } finally {
+      _refreshControllers[filter]!.refreshCompleted();
+    }
   }
 
-  Future<void> _onLoading(String? deviceId) async {
-    if (deviceId == null) return;
-    
+  Future<void> _onLoading(NotificationFilter filter, String? deviceId) async {
     final provider = Provider.of<NotificationsProvider>(context, listen: false);
-    await provider.loadMoreNotifications(deviceId);
-    _refreshController.loadComplete();
+    try {
+      if (provider.isAuthenticatedMode || deviceId != null) {
+        await provider.loadMoreNotifications(deviceId ?? '');
+      }
+    } finally {
+      _refreshControllers[filter]!.loadComplete();
+    }
   }
 
   Future<void> _onNotificationTap(NotificationModel notification, String? deviceId) async {
@@ -517,4 +560,72 @@ enum NotificationFilter {
   all,
   unread,
   important,
+}
+
+/// Grilla de items de un digest: símbolo, precio y % de cambio (verde/rojo).
+class _DigestItemsView extends StatelessWidget {
+  final List<DigestItem> items;
+  const _DigestItemsView({required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: items.map((it) {
+        final short = it.symbol.split('/').first;
+        final hasData = it.hasData;
+        final isUp = (it.changePct ?? 0) >= 0;
+        final changeColor = isUp ? Colors.green.shade600 : Colors.red.shade600;
+
+        return Container(
+          margin: const EdgeInsets.only(top: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface.withOpacity(0.6),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: Theme.of(context).dividerColor.withOpacity(0.4),
+            ),
+          ),
+          child: Row(
+            children: [
+              Text(
+                short,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+              const Spacer(),
+              if (hasData) ...[
+                Text(
+                  formatPrice(it.price!),
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  isUp ? Icons.trending_up : Icons.trending_down,
+                  size: 14,
+                  color: changeColor,
+                ),
+                const SizedBox(width: 2),
+                Text(
+                  '${isUp ? '+' : ''}${it.changePct!.toStringAsFixed(2)}%',
+                  style: TextStyle(
+                    color: changeColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ] else
+                Text(
+                  'sin datos',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.grey.shade500,
+                      ),
+                ),
+            ],
+          ),
+        );
+      }).toList(growable: false),
+    );
+  }
 }

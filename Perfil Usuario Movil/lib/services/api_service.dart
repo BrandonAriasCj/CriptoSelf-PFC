@@ -138,8 +138,13 @@ class ApiService {
       );
       
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        return data.map((json) => AlertSubscription.fromJson(json)).toList();
+        // DRF pagina por default: la respuesta es `{count, next, previous, results: [...]}`.
+        // Tolera también respuesta lista directa por si se desactiva la paginación.
+        final decoded = json.decode(response.body);
+        final List<dynamic> results = decoded is List
+            ? decoded
+            : (decoded['results'] as List<dynamic>? ?? const []);
+        return results.map((json) => AlertSubscription.fromJson(json)).toList();
       } else {
         throw Exception('Failed to get subscriptions: ${response.statusCode}');
       }

@@ -130,8 +130,10 @@ function Invoke-ECRLogin {
     if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($token)) {
         throw "aws ecr get-login-password fallo"
     }
-    # --password (no --password-stdin) por bug de encoding en PS pipe
-    docker login --username AWS --password $token $registry
+    # --password (no --password-stdin) por bug de encoding en PS pipe.
+    # cmd /c ... 2>nul: silenciar stderr al nivel OS antes de que PS 5.1 lo
+    # convierta en NativeCommandError fatal (con $ErrorActionPreference='Stop').
+    cmd /c "docker login --username AWS --password $token $registry 2>nul"
     if ($LASTEXITCODE -ne 0) { throw "docker login fallo" }
     Write-Ok "ECR login"
 }

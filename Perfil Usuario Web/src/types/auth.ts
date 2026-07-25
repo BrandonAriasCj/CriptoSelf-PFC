@@ -31,6 +31,7 @@ export interface User {
   date_joined: string;
   last_login: string | null;
   avatar?: string;
+  avatar_url?: string;
   bio?: string;
   phone_number?: string;
   date_of_birth?: string;

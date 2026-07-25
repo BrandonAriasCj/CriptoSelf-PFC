@@ -10,9 +10,10 @@ interface SimpleBacktestingChartProps {
     historial: number[];
     'datas closed': number[];
   };
+  symbol?: string;
 }
 
-export const SimpleBacktestingChart: React.FC<SimpleBacktestingChartProps> = ({ data }) => {
+export const SimpleBacktestingChart: React.FC<SimpleBacktestingChartProps> = ({ data, symbol = 'BTC/USDT' }) => {
   // Preparar datos para el gráfico
   const chartData = (data?.fechas || []).map((fecha, index) => ({
     fecha: fecha,
@@ -46,7 +47,7 @@ export const SimpleBacktestingChart: React.FC<SimpleBacktestingChartProps> = ({ 
     y: chartData.map(d => d.precio),
     type: 'scatter' as const,
     mode: 'lines' as const,
-    name: 'Precio BTC/USDT',
+    name: `Precio ${symbol}`,
     line: { color: '#f59e0b', width: 3 },
     fill: 'tozeroy',
     fillcolor: 'rgba(245, 158, 11, 0.1)',
@@ -54,32 +55,14 @@ export const SimpleBacktestingChart: React.FC<SimpleBacktestingChartProps> = ({ 
     text: chartData.map(d => d.fechaDisplay)
   };
 
-  // Trace para patrones de velas (solo puntos donde hay patrón)
-  const patternsData = chartData.filter(d => d.patron > 0);
-  const patternTrace = {
-    x: patternsData.map(d => d.fecha),
-    y: patternsData.map(d => d.precio),
-    type: 'scatter' as const,
-    mode: 'markers' as const,
-    name: 'Señales de Trading',
-    marker: {
-      color: '#ef4444',
-      size: 14,
-      symbol: 'triangle-up',
-      line: { color: '#ffffff', width: 2 }
-    },
-    hovertemplate: '<b>%{text}</b><br>Señal: $%{y:.2f}<extra></extra>',
-    text: patternsData.map(d => d.fechaDisplay)
-  };
-
   return (
     <div className="w-full">
       <React.Suspense fallback={<div className="h-[400px] w-full flex items-center justify-center text-gray-400 bg-gray-900/50 rounded-lg animate-pulse">Cargando gráfico...</div>}>
         <Plot
-          data={[priceTrace, patternTrace]}
+          data={[priceTrace]}
           layout={{
             title: {
-              text: '💹 Precio BTC/USDT con Señales de Trading',
+              text: `Precio histórico de ${symbol}`,
               font: { color: '#e5e7eb', size: 16 }
             },
             paper_bgcolor: '#111827',

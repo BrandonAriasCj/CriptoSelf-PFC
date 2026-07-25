@@ -1,0 +1,456 @@
+// =====================================================================
+//  Diagrama ER — Tablas funcionales (sin legacy)
+//  Proyecto: gestión gamificada de integrantes + trading/backtesting
+//  Pegar en https://dbdiagram.io  (sintaxis DBML)
+// =====================================================================
+
+// ============================ APP: users ============================
+Table users_user {
+  id            integer      [pk, increment]
+  email         varchar      [unique, not null]
+  username      varchar      [not null]
+  profile_type  varchar      [note: "web_user | mobile_user | company"]
+  first_name    varchar
+  last_name     varchar
+  phone_number  varchar
+  avatar_url    varchar
+  is_verified   boolean      [default: false]
+  is_public_profile boolean  [default: true]
+  created_at    timestamp
+  updated_at    timestamp
+
+  Note: 'Usuario personalizado (AbstractUser). Hub central del sistema.'
+}
+
+Table UserProfile {
+  id            integer  [pk, increment]
+  user_id       integer  [ref: - users_user.id, unique, not null]
+  company       varchar
+  job_title     varchar
+  preferred_currency varchar [default: "USD"]
+  risk_tolerance varchar [note: "conservative | moderate | aggressive"]
+  email_notifications boolean [default: true]
+  push_notifications  boolean [default: true]
+}
+
+Table CompanyProfile {
+  id            integer  [pk, increment]
+  user_id       integer  [ref: - users_user.id, unique, not null]
+  company_name  varchar  [not null]
+  tax_id        varchar
+  industry      varchar
+  company_size  varchar  [note: "1-10 | 11-50 | 51-200 | 200+"]
+  company_country varchar
+  company_city  varchar
+}
+
+// ======================= APP: organizations ========================
+Table Organization {
+  id            uuid     [pk]
+  name          varchar  [not null]
+  slug          varchar  [unique, not null]
+  organization_type varchar
+  email         varchar
+  country       varchar
+  city          varchar
+  max_students  integer  [default: 100]
+  subscription_plan varchar [note: "basic | standard | premium | enterprise"]
+  subscription_start timestamp
+  subscription_end   timestamp
+  is_active     boolean  [default: true]
+  created_at    timestamp
+}
+
+Table OrganizationAdmin {
+  id            integer  [pk, increment]
+  user_id       integer  [ref: - users_user.id, unique, not null]
+  organization_id uuid   [ref: > Organization.id, not null]
+  title         varchar
+  can_manage_students   boolean [default: true]
+  can_view_analytics    boolean [default: true]
+  is_primary_admin      boolean [default: false]
+  created_at    timestamp
+}
+
+Table OrganizationInvitation {
+  id            integer  [pk, increment]
+  organization_id uuid   [ref: > Organization.id, not null]
+  invited_by_id integer  [ref: > users_user.id, not null]
+  email         varchar  [not null]
+  invitation_type varchar [note: "admin | instructor | student"]
+  token         uuid     [unique]
+  status        varchar  [note: "pending | accepted | declined | expired"]
+  created_at    timestamp
+  expires_at    timestamp
+}
+
+// ======================== APP: gamification ========================
+Table Badge {
+  id            uuid     [pk]
+  organization_id uuid   [ref: > Organization.id, null, note: "NULL = badge global del sistema"]
+  name          varchar  [not null]
+  description   varchar
+  icon          varchar
+  rarity        varchar  [note: "common | rare | epic | legendary"]
+  is_system     boolean  [default: false]
+  created_at    timestamp
+}
+
+Table Challenge {
+  id            uuid     [pk]
+  organization_id uuid   [ref: > Organization.id, not null]
+  reward_badge_id uuid   [ref: > Badge.id, null]
+  created_by_id integer  [ref: > users_user.id, null]
+  name          varchar  [not null]
+  metric        varchar  [note: "trades | backtests | streak_days | win_rate | ..."]
+  target_value  decimal
+  reward_points integer  [default: 0]
+  difficulty    varchar  [note: "easy | medium | hard | epic"]
+  status        varchar  [note: "draft | active | completed | archived"]
+  is_global     boolean  [default: true]
+  start_date    timestamp
+  end_date      timestamp
+  created_at    timestamp
+
+  Note: 'Reto/meta configurable por métrica de engagement.'
+}
+
+Table ChallengeAssignment {
+  id            uuid     [pk]
+  challenge_id  uuid     [ref: > Challenge.id, not null]
+  member_id     integer  [ref: > users_user.id, not null]
+  organization_id uuid   [ref: > Organization.id, not null]
+  current_value decimal  [default: 0]
+  progress_percentage decimal [default: 0]
+  status        varchar  [note: "in_progress | completed | failed"]
+  completed_at  timestamp
+  created_at    timestamp
+
+  indexes {
+    (challenge_id, member_id) [unique]
+  }
+}
+
+Table MemberBadge {
+  id            uuid     [pk]
+  member_id     integer  [ref: > users_user.id, not null]
+  badge_id      uuid     [ref: > Badge.id, not null]
+  organization_id uuid   [ref: > Organization.id, not null]
+  challenge_id  uuid     [ref: > Challenge.id, null, note: "reto que originó el otorgamiento"]
+  awarded_at    timestamp
+
+  indexes {
+    (member_id, badge_id, organization_id) [unique]
+  }
+}
+
+Table PointsTransaction {
+  id            uuid     [pk]
+  member_id     integer  [ref: > users_user.id, not null]
+  organization_id uuid   [ref: > Organization.id, not null]
+  points        integer  [note: "puede ser +/-"]
+  source        varchar  [note: "challenge_completion | badge_award | manual_adjustment"]
+  reference_id  varchar
+  description   varchar
+  created_at    timestamp
+
+  Note: 'Audit trail de puntos. Suma = total_points del perfil.'
+}
+
+Table MemberGamificationProfile {
+  id            uuid     [pk]
+  member_id     integer  [ref: > users_user.id, not null]
+  organization_id uuid   [ref: > Organization.id, not null]
+  total_points  integer  [default: 0]
+  current_streak_days integer [default: 0]
+  longest_streak_days integer [default: 0]
+  last_activity_date  date
+  challenges_completed integer [default: 0]
+  updated_at    timestamp
+  created_at    timestamp
+
+  indexes {
+    (member_id, organization_id) [unique]
+  }
+}
+
+// ========================= APP: backtesting ========================
+Table Criptoactivo {
+  id            integer  [pk, increment]
+  symbol        varchar  [unique, not null]
+  name          varchar  [not null]
+  market_cap_rank integer
+  is_active     boolean  [default: true]
+  created_at    timestamp
+}
+
+Table Indicador {
+  id            integer  [pk, increment]
+  name          varchar  [unique, not null]
+  code          varchar  [unique, not null]
+  tipo          varchar  [note: "trend | momentum | volatility | volume | custom"]
+  parameters_schema json
+  is_active     boolean  [default: true]
+}
+
+Table Evento {
+  id            integer  [pk, increment]
+  name          varchar  [not null]
+  code          varchar  [unique, not null]
+  tipo_evento   varchar  [note: "buy_signal | sell_signal | stop_loss | ..."]
+  condition_logic text
+  priority      integer  [default: 1]
+  is_active     boolean  [default: true]
+}
+
+Table Estrategia {
+  id            integer  [pk, increment]
+  name          varchar  [not null]
+  code          varchar  [unique, not null]
+  created_by_id integer  [ref: > users_user.id, not null]
+  tipo_estrategia varchar [note: "scalping | day_trading | swing_trading | ..."]
+  estado        varchar  [note: "draft | active | paused | archived"]
+  max_risk_per_trade decimal
+  timeframe     varchar
+  is_public     boolean  [default: false]
+  created_at    timestamp
+}
+
+Table UsuarioEstrategiaCriptoactivo {
+  id            integer  [pk, increment]
+  usuario_id    integer  [ref: > users_user.id, not null]
+  estrategia_id integer  [ref: > Estrategia.id, not null]
+  criptoactivo_id integer [ref: > Criptoactivo.id, not null]
+  estado        varchar  [note: "active | paused | stopped | backtesting"]
+  capital_asignado decimal
+  fecha_inicio  timestamp
+  fecha_fin     timestamp
+
+  indexes {
+    (usuario_id, estrategia_id, criptoactivo_id) [unique]
+  }
+}
+
+Table DetalleEstrategia {
+  id            integer  [pk, increment]
+  estrategia_id integer  [ref: > Estrategia.id, not null]
+  tipo_detalle  varchar  [note: "entry_rule | exit_rule | risk_management | ..."]
+  name          varchar
+  configuration json
+  order         integer  [default: 1]
+  is_active     boolean  [default: true]
+
+  indexes {
+    (estrategia_id, tipo_detalle, name) [unique]
+  }
+}
+
+Table EventoEstrategiaDetalle {
+  id            integer  [pk, increment]
+  evento_id     integer  [ref: > Evento.id, not null]
+  detalle_estrategia_id integer [ref: > DetalleEstrategia.id, not null]
+  parameters    json
+  weight        decimal
+  evaluation_order integer
+
+  indexes {
+    (evento_id, detalle_estrategia_id) [unique]
+  }
+}
+
+Table IndicadorEvento {
+  id            integer  [pk, increment]
+  indicador_id  integer  [ref: > Indicador.id, not null]
+  evento_id     integer  [ref: > Evento.id, not null]
+  threshold_value decimal
+  comparison_operator varchar [note: "> | < | >= | <= | cross_above | cross_below"]
+  weight        decimal
+  evaluation_order integer
+
+  indexes {
+    (indicador_id, evento_id) [unique]
+  }
+}
+
+Table BacktestResult {
+  id            integer  [pk, increment]
+  usuario_id    integer  [ref: > users_user.id, null]
+  backtest_type varchar  [note: "demo | custom"]
+  symbol        varchar
+  timeframe     varchar
+  fecha_inicio  varchar
+  fecha_fin     varchar
+  capital_inicial decimal
+  capital_final decimal
+  ganancia_perdida decimal
+  rentabilidad_porcentaje decimal
+  operaciones_totales integer [default: 0]
+  tasa_acierto  decimal
+  sharpe_ratio  decimal
+  max_drawdown  decimal
+  parametros    json
+  created_at    timestamp
+
+  Note: 'Resultado persistido de backtest. Alimenta la gamificación.'
+}
+
+// ========================= APP: operaciones ========================
+Table Operacion {
+  id            integer  [pk, increment]
+  usuario_id    integer  [ref: > users_user.id, not null]
+  criptoactivo_id integer [ref: > Criptoactivo.id, not null]
+  tipo_operacion varchar [note: "compra | venta"]
+  cantidad      decimal
+  precio_promedio decimal
+  monto_total   decimal
+  comision      decimal  [note: "auto: 0.1% exchange + 1.5% conversión PEN->USD"]
+  fecha_operacion timestamp
+  estado        varchar  [note: "completada | pendiente | cancelada"]
+  created_at    timestamp
+}
+
+// =========================== APP: alerts ===========================
+Table AlertRule {
+  id            integer  [pk, increment]
+  user_id       integer  [ref: > users_user.id, not null]
+  name          varchar  [not null]
+  event_type    varchar  [note: "clase del registry de eventos"]
+  params        json
+  enabled       boolean  [default: true]
+  is_system     boolean  [default: false]
+  cooldown_seconds integer [default: 300]
+  last_triggered_at timestamp
+  created_at    timestamp
+}
+
+Table Notification {
+  id            integer  [pk, increment]
+  user_id       integer  [ref: > users_user.id, not null]
+  rule_id       integer  [ref: > AlertRule.id, null]
+  title         varchar  [not null]
+  body          text
+  severity      varchar  [note: "info | warning | critical"]
+  payload       json     [note: "deep_link, icon, data (web + móvil)"]
+  read_at       timestamp
+  created_at    timestamp
+}
+
+Table UserDevice {
+  id            integer  [pk, increment]
+  user_id       integer  [ref: > users_user.id, not null]
+  platform      varchar  [note: "web | ios | android"]
+  token         varchar
+  name          varchar
+  enabled       boolean  [default: true]
+  last_seen_at  timestamp
+  created_at    timestamp
+
+  indexes {
+    (user_id, platform, token) [unique]
+  }
+}
+
+Table SuggestionSignalState {
+  id            integer  [pk, increment]
+  symbol        varchar
+  timeframe     varchar
+  last_signal   varchar
+  last_candle_ts bigint  [default: 0]
+  updated_at    timestamp
+
+  indexes {
+    (symbol, timeframe) [unique]
+  }
+  Note: 'Sin FK. Dedup del escaneo periódico de cruces de medias.'
+}
+
+// ======================= APP: mobile_alerts ========================
+Table MobileGuestDevice {
+  id            integer  [pk, increment]
+  device_id     uuid     [unique, not null]
+  device_name   varchar
+  platform      varchar  [note: "ios | android | web"]
+  fcm_token     text
+  enabled_alerts boolean [default: true]
+  price_alerts  boolean  [default: true]
+  market_news   boolean  [default: true]
+  max_alerts_per_hour integer [default: 5]
+  created_at    timestamp
+  last_active_at timestamp
+
+  Note: 'Dispositivo móvil anónimo (sin registro completo).'
+}
+
+Table MobileAlertSubscription {
+  id            integer  [pk, increment]
+  device_id     integer  [ref: > MobileGuestDevice.id, not null]
+  alert_rule_id integer  [ref: > AlertRule.id, not null, note: "solo reglas is_system"]
+  is_active     boolean  [default: true]
+  subscribed_at timestamp
+
+  indexes {
+    (device_id, alert_rule_id) [unique]
+  }
+}
+
+Table MobileNotificationLog {
+  id            integer  [pk, increment]
+  device_id     integer  [ref: > MobileGuestDevice.id, not null]
+  notification_id integer [ref: > Notification.id, not null]
+  delivery_status varchar [note: "pending | sent | delivered | failed | clicked"]
+  sent_at       timestamp
+  delivered_at  timestamp
+  clicked_at    timestamp
+  created_at    timestamp
+}
+
+// ============================ TableGroups ==========================
+TableGroup users {
+  users_user
+  UserProfile
+  CompanyProfile
+}
+
+TableGroup organizations {
+  Organization
+  OrganizationAdmin
+  OrganizationInvitation
+}
+
+TableGroup gamification {
+  Badge
+  Challenge
+  ChallengeAssignment
+  MemberBadge
+  PointsTransaction
+  MemberGamificationProfile
+}
+
+TableGroup backtesting {
+  Criptoactivo
+  Indicador
+  Evento
+  Estrategia
+  UsuarioEstrategiaCriptoactivo
+  DetalleEstrategia
+  EventoEstrategiaDetalle
+  IndicadorEvento
+  BacktestResult
+}
+
+TableGroup operaciones {
+  Operacion
+}
+
+TableGroup alerts {
+  AlertRule
+  Notification
+  UserDevice
+  SuggestionSignalState
+}
+
+TableGroup mobile_alerts {
+  MobileGuestDevice
+  MobileAlertSubscription
+  MobileNotificationLog
+}

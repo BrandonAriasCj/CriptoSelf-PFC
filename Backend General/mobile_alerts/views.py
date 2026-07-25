@@ -51,7 +51,26 @@ class MobileDeviceViewSet(mixins.CreateModelMixin,
         elif self.action in ['update', 'partial_update']:
             return MobileDevicePreferencesSerializer
         return MobileGuestDeviceSerializer
-    
+
+    def create(self, request, *args, **kwargs):
+        """Crea el dispositivo y devuelve la representación completa.
+
+        El serializer de create sólo declara los campos de entrada; si
+        respondiéramos con él, el cliente no recibe `device_id` ni timestamps —
+        rompe el parser del mobile. Devolvemos `MobileGuestDeviceSerializer`
+        sobre la instancia recién creada.
+        """
+        write_serializer = self.get_serializer(data=request.data)
+        write_serializer.is_valid(raise_exception=True)
+        self.perform_create(write_serializer)
+        read_serializer = MobileGuestDeviceSerializer(write_serializer.instance)
+        headers = self.get_success_headers(read_serializer.data)
+        return Response(
+            read_serializer.data,
+            status=status.HTTP_201_CREATED,
+            headers=headers,
+        )
+
     def retrieve(self, request, *args, **kwargs):
         """Obtener info del dispositivo y actualizar last_active"""
         instance = self.get_object()

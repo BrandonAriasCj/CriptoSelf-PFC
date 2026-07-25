@@ -272,7 +272,7 @@ export function Settings() {
       </div>
 
       {/* API Settings */}
-      <Card>
+{/*       <Card>
         <CardHeader>
           <CardTitle>Configuración de API</CardTitle>
           <p className="text-muted-foreground">Conecta tu exchange para trading en vivo</p>
@@ -303,7 +303,7 @@ export function Settings() {
             </p>
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
 
       {/* Save Button */}
       <div className="flex justify-end gap-4">

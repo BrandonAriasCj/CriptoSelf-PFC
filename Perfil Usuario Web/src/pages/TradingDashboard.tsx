@@ -1087,12 +1087,15 @@ export function TradingDashboard() {
 
           {/* Live Notifications */}
           {notifications.length > 0 && (
-            <div className="fixed top-4 right-4 z-50 space-y-2">
+            <div
+              className="fixed top-4 z-50 space-y-2"
+              style={{ left: '50%', transform: 'translateX(-50%)' }}
+            >
               {notifications.map((notification) => (
                 <Card key={notification.id} className={`w-80 ${notification.type === 'success' ? 'border-green-500 bg-green-50 dark:bg-green-950/20' :
                   notification.type === 'error' ? 'border-red-500 bg-red-50 dark:bg-red-950/20' :
                     'border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20'
-                  } animate-in slide-in-from-right duration-300`}>
+                  } animate-in slide-in-from-top duration-300`}>
                   <CardContent className="p-3">
                     <p className="text-sm font-medium">{notification.message}</p>
                   </CardContent>

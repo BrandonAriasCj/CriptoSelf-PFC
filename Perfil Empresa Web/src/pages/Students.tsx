@@ -4,10 +4,10 @@ import { useOrganization } from '../contexts/OrganizationContext';
 import { MemberRow, MemberStats, MemberStatus, StudentEnrollment } from '../types';
 
 const STATUS_MAP: Record<MemberStatus, { label: string; cls: string }> = {
-  enrolled:  { label: 'Pendiente', cls: 'badge-info' },
-  active:    { label: 'Activo',    cls: 'badge-success' },
-  dropped:   { label: 'Baja',      cls: 'badge-danger' },
-  suspended: { label: 'Suspendido', cls: 'badge-warning' },
+  enrolled:  { label: 'Pendiente',    cls: 'badge-info' },
+  active:    { label: 'Activo',       cls: 'badge-success' },
+  dropped:   { label: 'Dado de baja', cls: 'badge-danger' },
+  suspended: { label: 'Suspendido',   cls: 'badge-warning' },
 };
 
 const LEVEL_COLOR = (level: number) => {
@@ -41,11 +41,7 @@ export default function Students() {
         gamificationService.memberStats(selectedOrgId).catch(() => [] as MemberStats[]),
       ]);
 
-      const enrollmentsRaw: StudentEnrollment[] = enrollmentsRes.data.results || enrollmentsRes.data;
-      // Sin filtro explícito de estado, ocultamos los dados de baja.
-      const enrollments = statusF
-        ? enrollmentsRaw
-        : enrollmentsRaw.filter(e => e.status !== 'dropped');
+      const enrollments: StudentEnrollment[] = enrollmentsRes.data.results || enrollmentsRes.data;
 
       const statsByMember = new Map<number, MemberStats>(
         (statsArr as MemberStats[]).map(s => [Number(s.member_id), s])
@@ -84,7 +80,7 @@ export default function Students() {
   }, [toast]);
 
   const handleDrop = async (m: MemberRow) => {
-    if (!confirm(`¿Dar de baja a ${m.student_name}? Podrás reactivarlo después editando su estado.`)) return;
+    if (!confirm(`¿Dar de baja a ${m.student_name}?\n\nQuedará marcado como "Dado de baja" pero podrás reactivarlo en cualquier momento.`)) return;
     try {
       await studentService.drop(m.id);
       setToast({ kind: 'ok', msg: `${m.student_name} fue dado de baja.` });
@@ -92,6 +88,29 @@ export default function Students() {
       fetchMembers();
     } catch {
       setToast({ kind: 'err', msg: 'No se pudo dar de baja.' });
+    }
+  };
+
+  const handleReactivate = async (m: MemberRow) => {
+    try {
+      await studentService.reactivate(m.id);
+      setToast({ kind: 'ok', msg: `${m.student_name} fue reactivado.` });
+      if (selected?.id === m.id) setSelected({ ...selected, status: 'active' });
+      fetchMembers();
+    } catch {
+      setToast({ kind: 'err', msg: 'No se pudo reactivar.' });
+    }
+  };
+
+  const handleRemove = async (m: MemberRow) => {
+    if (!confirm(`¿Eliminar definitivamente a ${m.student_name}?\n\nSe borrará su inscripción y todo su historial. Para volver a agregarlo deberás invitarlo nuevamente.`)) return;
+    try {
+      await studentService.remove(m.id);
+      setToast({ kind: 'ok', msg: `${m.student_name} fue eliminado.` });
+      if (selected?.id === m.id) setSelected(null);
+      fetchMembers();
+    } catch {
+      setToast({ kind: 'err', msg: 'No se pudo eliminar.' });
     }
   };
 
@@ -221,18 +240,47 @@ export default function Students() {
                             : <span className="text-muted text-xs">—</span>}
                         </td>
                         <td>
-                          <div style={{ display: 'flex', gap: 6 }}>
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                             <button className="btn btn-sm btn-ghost" onClick={() => setSelected(m)}>
                               Ver
                             </button>
                             <button className="btn btn-sm btn-ghost" onClick={() => setEditing(m)}>
                               Editar
                             </button>
-                            {m.status !== 'dropped' && (
-                              <button className="btn btn-sm btn-danger" onClick={() => handleDrop(m)}>
-                                Baja
+                            {m.status === 'dropped' ? (
+                              <button
+                                className="btn btn-sm"
+                                onClick={() => handleReactivate(m)}
+                                title="Volver a activar al integrante"
+                                style={{
+                                  background: 'transparent',
+                                  color: 'var(--success)',
+                                  border: '1px solid rgba(16,185,129,0.35)',
+                                }}
+                              >
+                                Reactivar
+                              </button>
+                            ) : (
+                              <button
+                                className="btn btn-sm"
+                                onClick={() => handleDrop(m)}
+                                title="Dar de baja (reversible)"
+                                style={{
+                                  background: 'transparent',
+                                  color: 'var(--warning, #f59e0b)',
+                                  border: '1px solid rgba(245,158,11,0.35)',
+                                }}
+                              >
+                                Dar de baja
                               </button>
                             )}
+                            <button
+                              className="btn btn-sm btn-danger"
+                              onClick={() => handleRemove(m)}
+                              title="Eliminar definitivamente (requerirá invitar de nuevo)"
+                            >
+                              Eliminar
+                            </button>
                           </div>
                         </td>
                       </tr>

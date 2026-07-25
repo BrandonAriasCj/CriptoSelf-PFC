@@ -108,10 +108,17 @@ class StudentEnrollmentDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def destroy(self, request, *args, **kwargs):
         enrollment = self.get_object()
+        hard = str(request.query_params.get('hard', '')).lower() in ('1', 'true', 'yes')
+        if hard:
+            enrollment.delete()
+            return Response(
+                {'message': 'Integrante eliminado permanentemente.'},
+                status=status.HTTP_200_OK
+            )
         enrollment.status = 'dropped'
         enrollment.save(update_fields=['status'])
         return Response(
-            {'message': 'Estudiante dado de baja exitosamente.'},
+            {'message': 'Integrante dado de baja exitosamente.'},
             status=status.HTTP_200_OK
         )
 

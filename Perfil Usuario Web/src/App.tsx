@@ -138,7 +138,7 @@ const MainApp: React.FC = () => {
 
   const tabs = [
     { id: 'trading' as Tab, label: 'Trading', icon: TrendingUp },
-    { id: 'my-strategy' as Tab, label: 'Backtesting', icon: Target },
+    { id: 'my-strategy' as Tab, label: 'Análisis Histórico', icon: Target },
     { id: 'my-challenges' as Tab, label: 'Mis Retos', icon: Target },
     { id: 'activity' as Tab, label: 'Portafolio', icon: Activity },
     { id: 'alerts' as Tab, label: 'Alertas', icon: Bell },
@@ -221,7 +221,7 @@ const MainApp: React.FC = () => {
         {/* User Info */}
         <div className="flex items-center gap-3 p-3 rounded-xl bg-muted-alpha-30 transition-theme">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={user?.avatar} alt={user?.username} />
+            <AvatarImage src={user?.avatar || user?.avatar_url} alt={user?.username} />
             <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-avatar-overlay">
               {(user?.first_name?.[0] || '') + (user?.last_name?.[0] || '') || user?.username?.[0]?.toUpperCase() || 'U'}
             </AvatarFallback>
@@ -281,7 +281,7 @@ const MainApp: React.FC = () => {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={user?.avatar} alt={user?.username} />
+                    <AvatarImage src={user?.avatar || user?.avatar_url} alt={user?.username} />
                     <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-avatar-overlay text-xs">
                       {(user?.first_name?.[0] || '') + (user?.last_name?.[0] || '') || user?.username?.[0]?.toUpperCase() || 'U'}
                     </AvatarFallback>
@@ -342,14 +342,14 @@ const MainApp: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex min-h-screen lg:min-h-screen">
+      <div className="flex min-h-screen app-shell">
         {/* Desktop Sidebar */}
         <div className="hidden lg:flex w-80 bg-sidebar backdrop-blur-theme border-r border-sidebar flex-col shadow-sm transition-theme">
           <SidebarContent />
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="app-main flex-1 flex flex-col overflow-hidden">
           {/* Desktop Header */}
           <div className="hidden lg:block bg-header backdrop-blur-theme border-b border-border-alpha-50 sticky top-0 z-40 transition-theme">
             <div className="p-6">
@@ -368,7 +368,7 @@ const MainApp: React.FC = () => {
                           : activeTab === "backtest"
                             ? "Resultados y análisis de backtesting"
                             : activeTab === "my-strategy"
-                              ? "Gestiona tus estrategias de trading"
+                              ? "Analiza el precio pasado de una moneda y los eventos que lo movieron"
                               : activeTab === "activity"
                                 ? "Resumen de tu portafolio y estadísticas de rendimiento"
                                 : activeTab === "alerts"
@@ -398,7 +398,7 @@ const MainApp: React.FC = () => {
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                         <Avatar className="h-8 w-8">
-                          <AvatarImage src={user?.avatar} alt={user?.username} />
+                          <AvatarImage src={user?.avatar || user?.avatar_url} alt={user?.username} />
                           <AvatarFallback>
                             {(user?.first_name?.[0] || '') + (user?.last_name?.[0] || '') || user?.username?.[0]?.toUpperCase() || 'U'}
                           </AvatarFallback>
@@ -448,12 +448,12 @@ const MainApp: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto bg-transparent">{renderContent()}</div>
+          <div className="app-scroll flex-1 overflow-auto bg-transparent">{renderContent()}</div>
         </div>
       </div>
 
       {/* Logout Confirmation Dialog */}
-      <div className="p-6">
+      <div>
         <SimpleLogoutConfirmation
           isOpen={showLogoutConfirmation}
           onClose={() => setShowLogoutConfirmation(false)}

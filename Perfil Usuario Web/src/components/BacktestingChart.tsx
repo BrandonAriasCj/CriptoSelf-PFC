@@ -24,9 +24,10 @@ interface BacktestingChartProps {
     historial: number[];
     'datas closed': number[];
   };
+  symbol?: string;
 }
 
-export const BacktestingChart: React.FC<BacktestingChartProps> = ({ data }) => {
+export const BacktestingChart: React.FC<BacktestingChartProps> = ({ data, symbol = 'BTC/USDT' }) => {
   const [historicalEvents, setHistoricalEvents] = useState<HistoricalEvent[]>([]);
   const [showGuide, setShowGuide] = useState(false);
 
@@ -87,7 +88,7 @@ export const BacktestingChart: React.FC<BacktestingChartProps> = ({ data }) => {
     y: chartData.map(d => d.precio),
     type: 'scatter' as const,
     mode: 'lines' as const,
-    name: 'Precio BTC/USDT',
+    name: `Precio ${symbol}`,
     line: { color: '#f59e0b', width: 3 },
     hovertemplate: '<b>%{text}</b><br>Precio: $%{y:.2f}<extra></extra>',
     text: chartData.map(d => d.fechaDisplay)
@@ -103,24 +104,6 @@ export const BacktestingChart: React.FC<BacktestingChartProps> = ({ data }) => {
     marker: { color: 'rgba(16, 185, 129, 0.6)' },
     hovertemplate: '<b>%{text}</b><br>Volumen: %{y:.0f}<extra></extra>',
     text: chartData.map(d => d.fechaDisplay)
-  };
-
-  // Trace para patrones de velas (solo puntos donde hay patrón)
-  const patternsData = chartData.filter(d => d.patron > 0);
-  const patternTrace = {
-    x: patternsData.map(d => d.fecha),
-    y: patternsData.map(d => d.precio),
-    type: 'scatter' as const,
-    mode: 'markers' as const,
-    name: 'Señales de Trading',
-    marker: {
-      color: '#ef4444',
-      size: 12,
-      symbol: 'triangle-up',
-      line: { color: '#ffffff', width: 2 }
-    },
-    hovertemplate: '<b>%{text}</b><br>Señal: $%{y:.2f}<extra></extra>',
-    text: patternsData.map(d => d.fechaDisplay)
   };
 
   // Filtrar eventos históricos relevantes para el rango del gráfico
@@ -151,8 +134,8 @@ export const BacktestingChart: React.FC<BacktestingChartProps> = ({ data }) => {
     x: event.fecha_inicio,
     y: 0.95 - (index % 3) * 0.1, // Escalonar verticalmente para evitar solapamiento
     yref: 'paper',
-    text: `${event.icono || '🚩'} ${event.evento}`,
-    hovertext: `<b>${event.evento}</b><br><br><b>🎯 Causa Fundamental:</b><br>${event.causa_fundamental || event.descripcion}<br><br><b>📊 Impacto:</b> ${event.impacto}<br><b>📅 Fecha:</b> ${new Date(event.fecha_inicio).toLocaleDateString('es-ES')}<br><b>🏷️ Tipo:</b> ${event.tipo}`,
+    text: event.evento,
+    hovertext: `<b>${event.evento}</b><br><br><b>Causa Fundamental:</b><br>${event.causa_fundamental || event.descripcion}<br><br><b>Impacto:</b> ${event.impacto}<br><b>Fecha:</b> ${new Date(event.fecha_inicio).toLocaleDateString('es-ES')}<br><b>Tipo:</b> ${event.tipo}`,
     showarrow: true,
     arrowhead: 2,
     arrowsize: 1,
@@ -177,10 +160,10 @@ export const BacktestingChart: React.FC<BacktestingChartProps> = ({ data }) => {
     <div className="w-full space-y-4">
       <React.Suspense fallback={<div className="h-[500px] w-full flex items-center justify-center text-gray-400 bg-gray-900/50 rounded-lg animate-pulse">Cargando gráfico...</div>}>
         <Plot
-          data={[priceTrace, volumeTrace, patternTrace]}
+          data={[priceTrace, volumeTrace]}
           layout={{
             title: {
-              text: 'Análisis de Backtesting - BTC/USDT con Eventos Fundamentales',
+              text: `Análisis Histórico - ${symbol} con Eventos Geopolíticos`,
               font: { color: '#e5e7eb', size: 18 }
             },
             paper_bgcolor: '#111827',
@@ -247,7 +230,7 @@ export const BacktestingChart: React.FC<BacktestingChartProps> = ({ data }) => {
         <div className="bg-gray-900/50 rounded-lg border border-gray-800 p-4">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-              🎯 Eventos Fundamentales en el Período
+              🌍 Eventos Geopolíticos en el Período
             </h3>
             <button
               onClick={() => setShowGuide(true)}
@@ -264,10 +247,9 @@ export const BacktestingChart: React.FC<BacktestingChartProps> = ({ data }) => {
                 style={{ borderLeftColor: event.color || '#8b5cf6' }}
               >
                 <div className="flex items-start gap-2">
-                  <span className="text-lg">{event.icono || '🚩'}</span>
                   <div className="flex-1 min-w-0">
                     <h4 className="font-medium text-white text-sm truncate">
-                      {event.evento.replace(/^[🚩🦠⚡🚗🇨🇳🇸🇻⚔️💥🏦🏛️📈🇩🇪⚖️🚀]+\s*/, '')}
+                      {event.evento}
                     </h4>
                     <p className="text-xs text-gray-400 mt-1">
                       {new Date(event.fecha_inicio).toLocaleDateString('es-ES')}
@@ -292,7 +274,7 @@ export const BacktestingChart: React.FC<BacktestingChartProps> = ({ data }) => {
             ))}
           </div>
           <div className="mt-3 text-xs text-gray-500 text-center">
-            💡 Los eventos fundamentales muestran las causas reales detrás de los movimientos de precio, más allá de los indicadores técnicos
+            💡 Los eventos geopolíticos (guerras, decisiones de gobiernos, elecciones) explican las causas reales detrás de los movimientos de precio
           </div>
         </div>
       )}

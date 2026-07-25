@@ -11,12 +11,14 @@ import Students from './pages/Students';
 import Challenges from './pages/Challenges';
 import Gamification from './pages/Gamification';
 import CompanyProfile from './pages/CompanyProfile';
+import AlertsTest from './pages/AlertsTest';
 
 const ROUTE_LABELS: Record<string, { title: string; subtitle: string }> = {
   '/dashboard':     { title: '📊 Dashboard',           subtitle: 'Resumen ejecutivo de tu organización' },
   '/students':      { title: '🎓 Integrantes',         subtitle: 'Monitorea el rendimiento del equipo' },
   '/challenges':    { title: '🏆 Retos y Desafíos',    subtitle: 'Crea metas gamificadas para tu equipo' },
   '/gamification':  { title: '🎮 Gamificación',        subtitle: 'Leaderboard, badges y records del equipo' },
+  '/alerts-test':   { title: 'Test de Alertas',        subtitle: 'Dispará alertas en vivo hacia una cuenta de usuario' },
   '/profile':       { title: '🏢 Perfil de Empresa',   subtitle: 'Administra los datos corporativos' },
 };
 
@@ -78,6 +80,7 @@ function MainLayout() {
           <Route path="/students"     element={<Students />} />
           <Route path="/challenges"   element={<Challenges />} />
           <Route path="/gamification" element={<Gamification />} />
+          <Route path="/alerts-test"  element={<AlertsTest />} />
           <Route path="/profile"      element={<CompanyProfile />} />
           <Route path="*"             element={<Navigate to="/dashboard" replace />} />
         </Routes>

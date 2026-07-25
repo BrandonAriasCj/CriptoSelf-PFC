@@ -17,7 +17,10 @@ param(
     [string]$BuildArgsFile = $(Join-Path (Split-Path $PSScriptRoot -Parent) '.secrets\build-args.env')
 )
 
-$ErrorActionPreference = 'Stop'
+# 'Continue' (no 'Stop'): docker build/push emiten progress info a stderr y con
+# 'Stop' PS 5.1 lo envuelve en NativeCommandError fatal. El script ya valida
+# $LASTEXITCODE tras cada llamada nativa, asi que no perdemos seguridad.
+$ErrorActionPreference = 'Continue'
 $Root = Split-Path $PSScriptRoot -Parent | Split-Path -Parent  # ../..
 
 # Cargar build-args.env si existe (solo VITE_*; el resto va al backend .env via SSM)
@@ -65,7 +68,11 @@ $ecrPassword = aws ecr get-login-password --region $Region
 if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($ecrPassword)) {
     throw "aws ecr get-login-password fallo. Confirma credenciales y region."
 }
-docker login --username AWS --password $ecrPassword $Registry
+# docker emite "Using --password via the CLI is insecure" a stderr y con
+# $ErrorActionPreference='Stop' PowerShell lo envuelve en NativeCommandError aunque
+# exit=0. `2>$null` NO sirve (el wrap ocurre antes). Usamos cmd.exe para silenciar
+# stderr a nivel OS, antes de que PS lo vea.
+cmd /c "docker login --username AWS --password $ecrPassword $Registry 2>nul"
 $loginExit = $LASTEXITCODE
 $ecrPassword = $null
 if ($loginExit -ne 0) { throw "docker login fallo (exit $loginExit)." }

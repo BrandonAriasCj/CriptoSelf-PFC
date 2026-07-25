@@ -40,4 +40,8 @@ app.conf.beat_schedule = {
         'task': 'gamification.evaluate_challenges',
         'schedule': 300.0,  # cada 5 min
     },
+    'alerts-scan-suggestions': {
+        'task': 'alerts.tasks.scan_market_suggestions',
+        'schedule': 900.0,  # cada 15 min: cruce de medias en símbolos top
+    },
 }

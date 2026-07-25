@@ -11,6 +11,7 @@ import logging
 from typing import Literal
 
 from .price_feed import PriceFeed
+from .templates import digest_headline
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +40,14 @@ def _format_price(price: float) -> str:
     return f'${price:,.4f}'
 
 
-def build_digest(cadence: Cadence, feed: PriceFeed | None = None) -> dict:
-    """Devuelve un dict con `title`, `body`, `severity`, `payload` listo para dispatch."""
+def build_digest(cadence: Cadence, feed: PriceFeed | None = None) -> dict | None:
+    """Devuelve un dict con `title`, `body`, `severity`, `payload` listo para dispatch.
+
+    Si ningún símbolo pudo resolverse con precio y cambio %, devuelve ``None`` para
+    que la tarea programada **no** envíe una notificación inútil del estilo "no fue
+    posible obtener los precios". Es preferible omitir el digest a llenar el inbox
+    con avisos vacíos.
+    """
 
     feed = feed or PriceFeed()
     window = _WINDOW_BY_CADENCE[cadence]
@@ -66,11 +73,19 @@ def build_digest(cadence: Cadence, feed: PriceFeed | None = None) -> dict:
             short = symbol.split('/')[0]
             summary_parts.append(f'{short} {_format_price(price)} ({sign}{change:.1f}%)')
 
-    body = (
-        ' · '.join(summary_parts)
-        if summary_parts
-        else 'No fue posible obtener los precios para este resumen.'
-    )
+    if not summary_parts:
+        logger.warning(
+            'Digest %s: ningún símbolo devolvió datos completos — se omite envío',
+            cadence,
+        )
+        return None
+
+    headline = digest_headline(items)
+    # El body conserva el listado compacto: lo usan los clientes que no
+    # interpretan ``payload.headline`` (push móvil, eventual digest por mail).
+    body = ' · '.join(summary_parts)
+    if headline:
+        body = f'{headline}\n{body}'
 
     return {
         'title': _TITLE_BY_CADENCE[cadence],
@@ -80,6 +95,7 @@ def build_digest(cadence: Cadence, feed: PriceFeed | None = None) -> dict:
             'cadence': cadence,
             'window': window,
             'items': items,
+            'headline': headline,
             'deep_link': 'alerts/subscriptions',
         },
     }

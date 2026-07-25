@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 import '../providers/device_provider.dart';
 import '../services/api_service.dart';
 
@@ -55,24 +56,39 @@ class _SplashScreenState extends State<SplashScreen>
       } catch (e) {
         print('⚠️ Servidor no disponible, usando modo demo');
       }
-      
-      // Inicializar el provider del dispositivo
+
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final deviceProvider = Provider.of<DeviceProvider>(context, listen: false);
-      await deviceProvider.initialize();
-      
+
+      // Rehidratamos sesión OAuth y guest device en paralelo: no dependen una
+      // de la otra y ahorramos un round-trip al dispositivo.
+      await Future.wait([
+        authProvider.initialize(),
+        deviceProvider.initialize(),
+      ]);
+
       // Esperar un mínimo de tiempo para mostrar el splash
       await Future.delayed(const Duration(seconds: 2));
-      
-      // Si estamos en web o no hay dispositivo registrado, ir a demo
-      if (mounted) {
-        if (kIsWeb || !deviceProvider.isRegistered) {
-          // En web o primera vez, ir directo al modo demo
-          Navigator.of(context).pushReplacementNamed('/demo');
-        } else {
-          Navigator.of(context).pushReplacementNamed('/home');
-        }
+
+      if (!mounted) return;
+
+      // Web siempre arranca en modo demo (no hay app real ahí).
+      if (kIsWeb) {
+        Navigator.of(context).pushReplacementNamed('/demo');
+        return;
       }
-      
+
+      // Ruta de inicio:
+      // 1. Si hay sesión OAuth válida → home autenticado.
+      // 2. Si hay device registrado (guest) → home guest.
+      // 3. Si no hay ninguno → pantalla de login con opción "Continuar sin cuenta".
+      if (authProvider.isAuthenticated) {
+        Navigator.of(context).pushReplacementNamed('/home');
+      } else if (deviceProvider.isRegistered) {
+        Navigator.of(context).pushReplacementNamed('/home');
+      } else {
+        Navigator.of(context).pushReplacementNamed('/login');
+      }
     } catch (e) {
       // En caso de error, ir al modo demo
       if (mounted) {

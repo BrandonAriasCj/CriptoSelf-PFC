@@ -3,6 +3,8 @@ from rest_framework.routers import SimpleRouter
 
 from .views import (
     AlertRuleViewSet,
+    DemoTriggerView,
+    DemoUsersView,
     EventTypeView,
     NotificationViewSet,
     SubscriptionsView,
@@ -19,5 +21,7 @@ router.register(r'event-types', EventTypeView, basename='eventtype')
 
 urlpatterns = [
     path('subscriptions/', SubscriptionsView.as_view(), name='subscriptions'),
+    path('demo/users/', DemoUsersView.as_view(), name='demo-users'),
+    path('demo/trigger/', DemoTriggerView.as_view(), name='demo-trigger'),
     path('', include(router.urls)),
 ]
